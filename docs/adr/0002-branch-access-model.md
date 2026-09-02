@@ -1,0 +1,221 @@
+# ADR-0002: Branch Access Model
+
+- Status: Accepted
+- Date: 2026-09-03
+
+## Context
+
+An organization may operate multiple branches.
+
+Regular users belong to exactly one organization, while platform administrators are not associated with an organization.
+
+A regular user may be assigned to multiple branches within their organization.
+
+Roles and permissions are organization-wide. They are not assigned separately for each branch.
+
+The system therefore needs to distinguish between:
+
+- **Authorization** — what a user is allowed to do.
+- **Data scope** — which organization's and branch's data a user is allowed to access.
+
+## Decision
+
+### Organization
+
+Each regular user belongs to exactly one organization through `users.organization_id`.
+
+An organization may have multiple branches.
+
+Platform administrators are not associated with an organization and have platform-wide access.
+
+### Branches
+
+Each branch belongs to exactly one organization.
+
+Regular users may be assigned to multiple branches through the `user_branches` relationship.
+
+A user cannot be assigned to a branch belonging to another organization.
+
+### Roles and Permissions
+
+Roles and permissions are scoped to an organization.
+
+A user's organization role determines what actions they are permitted to perform.
+
+Branch assignments do not change a user's permissions.
+
+Branch assignments determine which branch-scoped data the user may access.
+
+### Platform Administrators
+
+Platform administrators have unrestricted access across the platform.
+
+A platform administrator:
+
+- May access any organization.
+- May access any branch.
+- Does not require organization membership.
+- Does not require branch assignment.
+- Is not subject to organization-level role permissions or branch membership checks.
+
+Platform administrator access is controlled by the user's `platform_access` value.
+
+## Authorization Model
+
+For an authenticated request:
+
+1. Authenticate the user.
+2. Determine whether the user is a platform administrator.
+3. If the user is a platform administrator, allow access according to platform-level authorization.
+4. Otherwise, verify that the user belongs to the target organization.
+5. Verify that the user's organization role grants the required permission.
+6. If the operation is branch-scoped, verify that the user is assigned to the target branch.
+7. Execute the operation using queries constrained to the authorized organization and branch.
+
+Conceptually:
+
+```text
+Request
+  │
+  ▼
+Authenticate
+  │
+  ▼
+Platform Admin?
+  ├── Yes ──► Platform Access
+  │
+  └── No
+       │
+       ▼
+   Organization
+   Membership
+       │
+       ▼
+   Organization
+    Permission
+       │
+       ▼
+   Branch Access
+       │
+       ▼
+      Allow
+```
+
+## Data Ownership
+
+The ownership hierarchy is:
+
+```text
+Organization
+    │
+    ├── Branch
+    │     └── Branch-scoped data
+    │
+    └── Organization-scoped data
+```
+
+Resources that represent activity occurring at a specific branch should reference `branch_id`.
+
+Examples include:
+
+- Inventory
+- Sales
+- Purchases
+
+Resources that represent the organization's shared catalog may be organization-scoped.
+
+For example, a product catalog may belong to the organization while inventory quantities are maintained per branch.
+
+## Database Model
+
+The identity and access model consists of:
+
+```text
+users
+organizations
+branches
+user_branches
+
+roles
+permissions
+role_permissions
+user_roles
+```
+
+Relationships:
+
+```text
+organizations
+    │
+    ├──< users
+    │
+    └──< branches
+           │
+           └──< user_branches >── users
+```
+
+Roles and permissions:
+
+```text
+organizations
+    │
+    └──< roles
+           │
+           └──< role_permissions >── permissions
+
+users
+    │
+    └──< user_roles >── roles
+```
+
+## Integrity Rules
+
+The system must enforce the following invariants:
+
+1. A regular user belongs to exactly one organization.
+2. A platform administrator does not belong to an organization.
+3. A branch belongs to exactly one organization.
+4. A regular user may only be assigned to branches belonging to their organization.
+5. Roles belong to an organization.
+6. A user may only be assigned roles belonging to their organization.
+7. Organization-scoped queries must be constrained to the authorized organization.
+8. Branch-scoped queries must be constrained to the authorized branch.
+9. Platform administrators may access all organizations and branches.
+
+## Consequences
+
+### Positive
+
+- Roles remain simple and organization-wide.
+- Users can work across multiple branches without duplicating user accounts.
+- Branch access is independent from permissions.
+- Platform administrators can operate across the entire platform.
+- Organization and branch boundaries are explicit in the data model.
+- Business resources can clearly declare whether they are organization- or branch-scoped.
+
+### Negative
+
+- Branch-scoped requests require an additional access check.
+- Many operational resources will require a `branch_id`.
+- Cross-branch operations require explicit handling.
+- The application must prevent users from combining an organization they belong to with a branch belonging to another organization.
+
+## Alternatives Considered
+
+### Branch-specific roles
+
+Rejected because roles and permissions are organization-wide.
+
+Adding separate roles for each branch would unnecessarily couple authorization with data scope.
+
+### `branch_id` directly on `users`
+
+Rejected because a user may be assigned to multiple branches.
+
+A many-to-many `user_branches` relationship is required.
+
+### Organization memberships
+
+Rejected because regular users belong to exactly one organization.
+
+`users.organization_id` directly represents the user's organization, while `user_branches` represents their branch assignments.
