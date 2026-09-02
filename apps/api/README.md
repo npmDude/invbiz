@@ -2,19 +2,19 @@
 
 Backend API for the Inventory & Business Management System.
 
-Built with **TypeScript, Express, PostgreSQL, Drizzle ORM, and Zod**.
+The initial foundation provides a typed Express application, runtime configuration validation, consistent JSON errors, OpenAPI documentation, and a health endpoint. PostgreSQL and Drizzle will be added with the first persistence-backed domain.
 
 ## Tech Stack
 
-* **Runtime:** Node.js
-* **Language:** TypeScript
-* **Framework:** Express
-* **Database:** PostgreSQL
-* **ORM:** Drizzle
-* **Validation:** Zod
-* **Testing:** Vitest
-* **API Documentation:** OpenAPI / Swagger
-* **Authentication:** JWT / Session-based authentication
+- **Runtime:** Node.js
+- **Language:** TypeScript
+- **Framework:** Express
+- **Database:** PostgreSQL
+- **ORM:** Drizzle
+- **Validation:** Zod
+- **Testing:** Vitest
+- **API Documentation:** OpenAPI / Swagger
+- **Authentication:** JWT / Session-based authentication
 
 ## Architecture
 
@@ -26,21 +26,21 @@ The API follows a modular, domain-oriented architecture.
 
 Handle concerns around API operations:
 
-* Authentication
-* Authorization
-* Request validation
-* Organization/tenant context
-* Rate limiting
-* Audit logging
+- Authentication
+- Authorization
+- Request validation
+- Organization/tenant context
+- Rate limiting
+- Audit logging
 
 **Controllers**
 
 Handle HTTP-specific concerns:
 
-* Reading request data
-* Calling services
-* Returning HTTP responses
-* Mapping errors to HTTP status codes
+- Reading request data
+- Calling services
+- Returning HTTP responses
+- Mapping errors to HTTP status codes
 
 Controllers should contain minimal business logic.
 
@@ -50,12 +50,12 @@ Contain application and business logic.
 
 Examples:
 
-* Creating and updating products
-* Receiving inventory
-* Processing sales
-* Adjusting stock
-* Creating inventory movements
-* Validating business rules
+- Creating and updating products
+- Receiving inventory
+- Processing sales
+- Adjusting stock
+- Creating inventory movements
+- Validating business rules
 
 **Repositories**
 
@@ -94,35 +94,52 @@ Business rules that are part of the actual workflow should remain in the service
 
 ## Development
 
-Install dependencies:
+Install workspace dependencies from the repository root:
 
 ```bash
-npm install
+cd ../..
+pnpm install
 ```
+
+The remaining commands can run from `apps/api`.
 
 Start the development server:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Run tests:
 
 ```bash
-npm test
+pnpm test
 ```
 
 Run type checking:
 
 ```bash
-npm run typecheck
+pnpm typecheck
 ```
 
 Run linting:
 
 ```bash
-npm run lint
+pnpm lint
 ```
+
+Format source files:
+
+```bash
+pnpm format
+```
+
+Build the production output:
+
+```bash
+pnpm build
+```
+
+The health endpoint is available at `GET /api/health`. Interactive OpenAPI documentation is available at `/api/docs`.
 
 ## Environment Variables
 
@@ -131,26 +148,9 @@ Create a `.env` file based on `.env.example`.
 ```env
 NODE_ENV=development
 PORT=3000
-
-DATABASE_URL=postgresql://user:password@localhost:5432/inventory
-
-JWT_SECRET=your-secret
 ```
 
 Never commit `.env` or production secrets to the repository.
-
-## Database
-
-Database schema and migrations are managed through Drizzle.
-
-Typical workflow:
-
-```bash
-npm run db:generate
-npm run db:migrate
-```
-
-For local development, PostgreSQL can be run using Docker.
 
 ## API Documentation
 
@@ -176,11 +176,11 @@ Business logic should not live inside controllers.
 
 Repositories should handle:
 
-* Queries
-* Inserts
-* Updates
-* Deletes
-* Database transactions
+- Queries
+- Inserts
+- Updates
+- Deletes
+- Database transactions
 
 Business decisions belong in services.
 
@@ -190,10 +190,10 @@ Services should be callable without an Express request.
 
 This allows the same business operations to be reused by:
 
-* HTTP controllers
-* Background jobs
-* CLI commands
-* Other application workflows
+- HTTP controllers
+- Background jobs
+- CLI commands
+- Other application workflows
 
 ### Prefer domain-oriented modules
 
