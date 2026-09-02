@@ -20,49 +20,6 @@ The initial foundation provides a typed Express application, runtime configurati
 
 The API follows a modular, domain-oriented architecture.
 
-### Responsibilities
-
-**Middleware / Hooks**
-
-Handle concerns around API operations:
-
-- Authentication
-- Authorization
-- Request validation
-- Organization/tenant context
-- Rate limiting
-- Audit logging
-
-**Controllers**
-
-Handle HTTP-specific concerns:
-
-- Reading request data
-- Calling services
-- Returning HTTP responses
-- Mapping errors to HTTP status codes
-
-Controllers should contain minimal business logic.
-
-**Services**
-
-Contain application and business logic.
-
-Examples:
-
-- Creating and updating products
-- Receiving inventory
-- Processing sales
-- Adjusting stock
-- Creating inventory movements
-- Validating business rules
-
-**Repositories**
-
-Handle database access.
-
-Repositories are the boundary between the application and PostgreSQL and use Drizzle for queries and persistence.
-
 ## Project Structure
 
 ```text
@@ -76,16 +33,16 @@ src/
 │   ├── request-context.ts
 │   └── rate-limit.ts
 │
-├── domains/
+├── modules/
 │   ├── auth/
 │   ├── users/
-│   └── domain/
-│       ├── domain.controller.ts
-│       ├── domain.service.ts
-│       ├── domain.repository.ts
-│       ├── domain.rules.ts
-│       ├── domain.schema.ts
-│       └── domain.types.ts
+│   └── {domain}/
+│       ├── {domain}.controller.ts
+│       ├── {domain}.service.ts
+│       ├── {domain}.repository.ts
+│       ├── {domain}.rules.ts
+│       ├── {domain}.schema.ts
+│       └── {domain}.types.ts
 │
 └── database/
 ```

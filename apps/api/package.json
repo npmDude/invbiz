@@ -18,7 +18,10 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "1.0.0-rc.4",
     "express": "^5.1.0",
+    "pg": "^8.23.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.1.12"
@@ -27,14 +30,16 @@
     "@eslint/js": "^9.38.0",
     "@types/express": "^5.0.5",
     "@types/node": "^24.10.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^6.0.3",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "drizzle-kit": "1.0.0-rc.4",
     "eslint": "^9.38.0",
     "globals": "^16.5.0",
     "prettier": "^3.6.2",
     "supertest": "^7.1.4",
-    "tsx": "^4.20.6",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.2",
     "vitest": "^4.0.7"
