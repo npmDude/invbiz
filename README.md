@@ -1,6 +1,16 @@
 # InvBiz
 A flexible inventory and business management system designed to help businesses track inventory, sales, purchases and day-to-day operations.
 
+## Product Vision
+
+InvBiz will provide a web-first inventory and business management experience backed by a typed API and relational database. A native mobile app is planned but is not part of the initial implementation.
+
+### Intended Stack
+
+- API: Express, TypeScript, PostgreSQL, Drizzle, Zod, JWT/session authentication, Vitest, and OpenAPI/Swagger.
+- Web: React, TanStack, TypeScript, and Tailwind CSS.
+- Native: React Native, deferred until after the web product is established.
+
 ## Project Structure
 
 - `apps/` contains deployable products with their own runtime and entrypoint, such as `apps/web`, `apps/api`, and `apps/native`.
