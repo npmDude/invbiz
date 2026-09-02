@@ -27,7 +27,7 @@ export const usersTable = pgTable(
 
     password: varchar({ length: 255 }).notNull(),
 
-    platform_access: platformAccess().notNull().default('standard'),
+    platformAccess: platformAccess().notNull().default('standard'),
 
     createdAt: timestamp('created_at', {
       withTimezone: true,
@@ -44,9 +44,9 @@ export const usersTable = pgTable(
   (table) => [
     check(
       'users_organization_or_platform_admin_check',
-      sql`(${table.organizationId} IS NOT NULL AND ${table.platform_access} = 'standard')
+      sql`(${table.organizationId} IS NOT NULL AND ${table.platformAccess} = 'standard')
        OR
-       (${table.organizationId} IS NULL AND ${table.platform_access} = 'admin')`,
+       (${table.organizationId} IS NULL AND ${table.platformAccess} = 'admin')`,
     ),
   ],
 );
