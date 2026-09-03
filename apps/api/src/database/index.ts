@@ -7,3 +7,5 @@ export const db = drizzle({
     ssl: process.env.DATABASE_SSL === 'true'
   }
 });
+
+export type Database = typeof db;
