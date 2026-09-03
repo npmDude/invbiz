@@ -1,10 +1,5 @@
-import {
-  pgTable,
-  timestamp,
-  uniqueIndex,
-  uuid,
-  varchar,
-} from 'drizzle-orm/pg-core';
+import { pgTable, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import { timestamps } from './columns.helpers';
 import { organizationsTable } from './organizations';
 
 export const branchesTable = pgTable(
@@ -22,17 +17,7 @@ export const branchesTable = pgTable(
 
     address: varchar({ length: 255 }).notNull(),
 
-    createdAt: timestamp('created_at', {
-      withTimezone: true,
-    })
-      .defaultNow()
-      .notNull(),
-
-    updatedAt: timestamp('updated_at', {
-      withTimezone: true,
-    })
-      .defaultNow()
-      .notNull(),
+    ...timestamps,
   },
   (table) => [
     uniqueIndex('branches_organization_id_name_idx').on(

@@ -3,11 +3,11 @@ import {
   check,
   index,
   pgEnum,
-  pgTable,
-  timestamp,
+  snakeCase,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { timestamps } from './columns.helpers';
 import { organizationsTable } from './organizations';
 
 export const platformAccessEnum = pgEnum('platform_access', [
@@ -15,7 +15,7 @@ export const platformAccessEnum = pgEnum('platform_access', [
   'standard',
 ]);
 
-export const usersTable = pgTable(
+export const usersTable = snakeCase.table(
   'users',
   {
     id: uuid('id').defaultRandom().primaryKey(),
@@ -35,17 +35,7 @@ export const usersTable = pgTable(
 
     platformAccess: platformAccessEnum().notNull().default('standard'),
 
-    createdAt: timestamp('created_at', {
-      withTimezone: true,
-    })
-      .defaultNow()
-      .notNull(),
-
-    updatedAt: timestamp('updated_at', {
-      withTimezone: true,
-    })
-      .defaultNow()
-      .notNull(),
+    ...timestamps,
   },
   (table) => [
     index('users_organization_id_idx').on(table.organizationId),
