@@ -2,7 +2,11 @@ import { type SQL } from 'drizzle-orm';
 import type { PgTable } from 'drizzle-orm/pg-core';
 import type { Database } from '../database';
 
-export abstract class BaseRepository<TTable extends PgTable, TFilters, TResult> {
+export abstract class BaseRepository<
+  TTable extends PgTable,
+  TFilters,
+  TResult,
+> {
   constructor(
     protected readonly db: Database,
     protected readonly table: TTable,
@@ -21,7 +25,7 @@ export abstract class BaseRepository<TTable extends PgTable, TFilters, TResult> 
     return result;
   }
 
-  async findAll(filters?: TFilters): Promise<TResult[] | undefined> {
+  async findAll(filters?: TFilters): Promise<TResult[]> {
     return (
       this.db
         .select()

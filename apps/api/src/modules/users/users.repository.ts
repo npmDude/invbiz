@@ -41,4 +41,4 @@ export class UsersRepository extends BaseRepository<
   }
 }
 
-export const userRepository = new UsersRepository(db);
+export const usersRepository = new UsersRepository(db);
