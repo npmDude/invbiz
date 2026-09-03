@@ -1,9 +1,9 @@
 import express, { type Express } from 'express';
 import swaggerUi from 'swagger-ui-express';
 
-import { AppError } from './lib/app-error.js';
-import { errorHandler } from './middlewares/error-handler.js';
-import { openApiDocument } from './openapi.js';
+import { AppError } from './lib/app-error';
+import { errorHandler } from './middlewares/error-handler';
+import { openApiDocument } from './openapi';
 
 export function createApp(): Express {
   const app = express();
