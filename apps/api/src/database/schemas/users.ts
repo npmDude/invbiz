@@ -7,19 +7,21 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
+import { organizationsTable } from './organizations';
 
-import { organizations } from './organizations';
-
-export const platformAccess = pgEnum('platform_access', ['admin', 'standard']);
+export const platformAccessEnum = pgEnum('platform_access', ['admin', 'standard']);
 
 export const usersTable = pgTable(
   'users',
   {
     id: uuid('id').defaultRandom().primaryKey(),
 
-    organizationId: uuid('organization_id').references(() => organizations.id, {
-      onDelete: 'set null',
-    }),
+    organizationId: uuid('organization_id').references(
+      () => organizationsTable.id,
+      {
+        onDelete: 'cascade',
+      },
+    ),
 
     name: varchar({ length: 255 }).notNull(),
 
@@ -27,7 +29,7 @@ export const usersTable = pgTable(
 
     password: varchar({ length: 255 }).notNull(),
 
-    platformAccess: platformAccess().notNull().default('standard'),
+    platformAccess: platformAccessEnum().notNull().default('standard'),
 
     createdAt: timestamp('created_at', {
       withTimezone: true,
