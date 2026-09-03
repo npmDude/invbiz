@@ -41,7 +41,7 @@ A user cannot be assigned to a branch belonging to another organization.
 
 User access is represented by a single `users.access_level` field with three values:
 
-- **`platform_admin`** — platform-wide access across all organizations and branches. The user has no organization.
+- **`admin`** — platform-wide access across all organizations and branches. The user has no organization.
 - **`superuser`** — unrestricted access within their organization, including all branches.
 - **`user`** — access determined by organization roles and limited to assigned branches for branch-scoped data.
 
@@ -77,7 +77,7 @@ For an authenticated request:
 
 1. Authenticate the user.
 2. Determine the user's `access_level`.
-3. If the user is `platform_admin`, allow platform-wide access.
+3. If the user is `admin`, allow platform-wide access.
 4. Otherwise, verify that the user belongs to the target organization.
 5. If the user is `superuser`, allow access to resources within that organization and all of its branches.
 6. Otherwise, verify that the user's organization role grants the required permission.
@@ -94,7 +94,7 @@ Authenticate
   │
   ▼
 Access Level
-  ├── platform_admin ──► Platform-wide Access
+  ├── admin ──► Platform-wide Access
   │
   └── superuser?
        ├── Yes ──► All permissions + all branches
@@ -185,7 +185,7 @@ The system must enforce the following invariants:
 
 1. A `user` belongs to exactly one organization.
 2. A `superuser` belongs to exactly one organization.
-3. A `platform_admin` does not belong to an organization.
+3. A `admin` does not belong to an organization.
 4. A branch belongs to exactly one organization.
 5. A `user` may only be assigned to branches belonging to their organization.
 6. A `superuser` does not require branch assignments to access branches in their organization.
@@ -194,7 +194,7 @@ The system must enforce the following invariants:
 9. Organization-scoped queries must be constrained to the authorized organization.
 10. Branch-scoped queries must be constrained to the authorized branch for `user` access levels.
 11. Platform administrators may access all organizations and branches.
-12. `users.access_level` and `users.organization_id` must remain consistent: `platform_admin` requires a null organization, while `superuser` and `user` require a non-null organization.
+12. `users.access_level` and `users.organization_id` must remain consistent: `admin` requires a null organization, while `superuser` and `user` require a non-null organization.
 
 ## Consequences
 

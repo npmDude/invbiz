@@ -11,7 +11,7 @@ import { timestamps } from './columns.helpers';
 import { organizationsTable } from './organizations';
 
 export const accessLevelEnum = pgEnum('access_level', [
-  'platform_admin',
+  'admin',
   'superuser',
   'user',
 ]);
@@ -43,7 +43,7 @@ export const usersTable = snakeCase.table(
     check(
       'users_organization_access_check',
       sql`(
-        ${table.accessLevel} = 'platform_admin'
+        ${table.accessLevel} = 'admin'
         AND ${table.organizationId} IS NULL
       ) OR (
         ${table.accessLevel} IN ('superuser', 'user')
