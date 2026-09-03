@@ -1,6 +1,7 @@
 # ADR 0001: Authorization Model
 
-- Status: Accepted
+- Status: Deprecated
+- Superseded by: ADR 0002
 - Date: 2026-09-03
 
 ## Context

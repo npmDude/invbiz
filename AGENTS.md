@@ -18,3 +18,8 @@
 - Check for more-specific `AGENTS.md` files before modifying a subdirectory; the closest applicable file takes precedence.
 - Preserve existing conventions in each application or package.
 - Record new development, test, and build commands in the root README when the toolchain is introduced.
+
+## Architecture Decision Records
+
+- Store architecture decision records in `docs/adr/` using sequential numeric prefixes.
+- When a decision is superseded, mark the older ADR as `Deprecated` and identify the replacement with `Superseded by` metadata.
