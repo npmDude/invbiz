@@ -23,7 +23,7 @@ The system therefore needs to distinguish between:
 
 ### Organization
 
-Each regular user belongs to exactly one organization through `users.organization_id`.
+Each non-platform user belongs to exactly one organization through `users.organization_id`.
 
 An organization may have multiple branches.
 
@@ -33,21 +33,19 @@ Platform administrators are not associated with an organization and have platfor
 
 Each branch belongs to exactly one organization.
 
-Regular users may be assigned to multiple branches through the `user_branches` relationship.
+Non-platform users may be assigned to multiple branches through the `user_branches` relationship.
 
 A user cannot be assigned to a branch belonging to another organization.
 
 ### Access Levels
 
-The system has three effective access levels:
+User access is represented by a single `users.access_level` field with three values:
 
-- **Platform admin** — platform-wide access across all organizations and branches.
-- **Organization superuser** — unrestricted access within their organization, including all branches.
-- **Standard user** — access determined by organization roles and limited to assigned branches for branch-scoped data.
+- **`platform_admin`** — platform-wide access across all organizations and branches. The user has no organization.
+- **`superuser`** — unrestricted access within their organization, including all branches.
+- **`user`** — access determined by organization roles and limited to assigned branches for branch-scoped data.
 
-Platform admin access is represented by `users.platform_access`.
-
-Organization superuser versus standard user access is represented by an organization-level access level on the user.
+Access levels are mutually exclusive. A platform administrator cannot simultaneously be an organization superuser or standard user.
 
 ### Roles and Permissions
 
@@ -69,7 +67,7 @@ A platform administrator:
 
 - May access any organization.
 - May access any branch.
-- Does not require organization membership.
+- Has no organization assignment.
 - Does not require branch assignment.
 - Is not subject to organization-level role permissions or branch membership checks.
 
@@ -78,14 +76,13 @@ A platform administrator:
 For an authenticated request:
 
 1. Authenticate the user.
-2. Determine whether the user is a platform administrator.
-3. If the user is a platform administrator, allow platform-wide access.
+2. Determine the user's `access_level`.
+3. If the user is `platform_admin`, allow platform-wide access.
 4. Otherwise, verify that the user belongs to the target organization.
-5. Determine whether the user is an organization superuser.
-6. If the user is an organization superuser, allow access to resources within that organization and all of its branches.
-7. Otherwise, verify that the user's organization role grants the required permission.
-8. If the operation is branch-scoped, verify that the user is assigned to the target branch.
-9. Execute the operation using queries constrained to the authorized organization and branch.
+5. If the user is `superuser`, allow access to resources within that organization and all of its branches.
+6. Otherwise, verify that the user's organization role grants the required permission.
+7. If the operation is branch-scoped, verify that the user is assigned to the target branch.
+8. Execute the operation using queries constrained to the authorized organization and branch.
 
 Conceptually:
 
@@ -96,30 +93,23 @@ Request
 Authenticate
   │
   ▼
-Platform Admin?
-  ├── Yes ──► Platform-wide Access
+Access Level
+  ├── platform_admin ──► Platform-wide Access
   │
-  └── No
+  └── superuser?
+       ├── Yes ──► All permissions + all branches
        │
-       ▼
-   Organization
-     Access
-       │
-       ▼
-   Superuser?
-   ├── Yes ──► All permissions + all branches
-   │
-   └── No
-        │
-        ▼
-   Organization
-      Role
-        │
-        ▼
-   Branch Access
-        │
-        ▼
-       Allow
+       └── No
+            │
+            ▼
+       Organization
+          Role
+            │
+            ▼
+       Branch Access
+            │
+            ▼
+           Allow
 ```
 
 ## Data Ownership
@@ -193,22 +183,24 @@ users
 
 The system must enforce the following invariants:
 
-1. A standard user belongs to exactly one organization.
-2. An organization superuser belongs to exactly one organization.
-3. A platform administrator does not belong to an organization.
+1. A `user` belongs to exactly one organization.
+2. A `superuser` belongs to exactly one organization.
+3. A `platform_admin` does not belong to an organization.
 4. A branch belongs to exactly one organization.
-5. A standard user may only be assigned to branches belonging to their organization.
-6. An organization superuser does not require branch assignments to access branches in their organization.
+5. A `user` may only be assigned to branches belonging to their organization.
+6. A `superuser` does not require branch assignments to access branches in their organization.
 7. Roles belong to an organization.
 8. A user may only be assigned roles belonging to their organization.
 9. Organization-scoped queries must be constrained to the authorized organization.
-10. Branch-scoped queries must be constrained to the authorized branch for standard users.
+10. Branch-scoped queries must be constrained to the authorized branch for `user` access levels.
 11. Platform administrators may access all organizations and branches.
+12. `users.access_level` and `users.organization_id` must remain consistent: `platform_admin` requires a null organization, while `superuser` and `user` require a non-null organization.
 
 ## Consequences
 
 ### Positive
 
+- Access level is represented by one mutually exclusive field.
 - Roles remain simple and organization-wide.
 - Users can work across multiple branches without duplicating user accounts.
 - Branch access is independent from permissions for standard users.
@@ -225,6 +217,12 @@ The system must enforce the following invariants:
 - The application must prevent users from combining an organization they belong to with a branch belonging to another organization.
 
 ## Alternatives Considered
+
+### Separate `platform_access` and `access_level` fields
+
+Rejected because two fields allow contradictory combinations and require additional integrity rules.
+
+A single `access_level` field makes the three mutually exclusive access levels explicit.
 
 ### Branch-specific roles
 
