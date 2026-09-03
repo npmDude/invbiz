@@ -10,9 +10,10 @@ import {
 import { timestamps } from './columns.helpers';
 import { organizationsTable } from './organizations';
 
-export const platformAccessEnum = pgEnum('platform_access', [
+export const accessLevelEnum = pgEnum('access_level', [
   'admin',
-  'standard',
+  'superuser',
+  'user',
 ]);
 
 export const usersTable = snakeCase.table(
@@ -33,17 +34,21 @@ export const usersTable = snakeCase.table(
 
     password: varchar({ length: 255 }).notNull(),
 
-    platformAccess: platformAccessEnum().notNull().default('standard'),
+    accessLevel: accessLevelEnum().notNull().default('user'),
 
     ...timestamps,
   },
   (table) => [
     index('users_organization_id_idx').on(table.organizationId),
     check(
-      'users_organization_or_platform_admin_check',
-      sql`(${table.organizationId} IS NOT NULL AND ${table.platformAccess} = 'standard')
-       OR
-       (${table.organizationId} IS NULL AND ${table.platformAccess} = 'admin')`,
+      'users_organization_access_check',
+      sql`(
+        ${table.accessLevel} = 'admin'
+        AND ${table.organizationId} IS NULL
+      ) OR (
+        ${table.accessLevel} IN ('superuser', 'user')
+        AND ${table.organizationId} IS NOT NULL
+      )`,
     ),
   ],
 );
