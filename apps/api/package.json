@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:seed": "tsx src/database/seeds/index.ts"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
