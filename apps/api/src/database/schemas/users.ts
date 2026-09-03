@@ -16,6 +16,8 @@ export const accessLevelEnum = pgEnum('access_level', [
   'user',
 ]);
 
+export type AccessLevel = (typeof accessLevelEnum.enumValues)[number];
+
 export const usersTable = snakeCase.table(
   'users',
   {
@@ -52,3 +54,5 @@ export const usersTable = snakeCase.table(
     ),
   ],
 );
+
+export type User = typeof usersTable.$inferSelect;
