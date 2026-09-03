@@ -17,6 +17,7 @@ The system therefore needs to distinguish between:
 
 - **Authorization** — what a user is allowed to do.
 - **Data scope** — which organization's and branch's data a user is allowed to access.
+- **Access level** — whether the user is a platform administrator, organization superuser, or standard user.
 
 ## Decision
 
@@ -36,15 +37,29 @@ Regular users may be assigned to multiple branches through the `user_branches` r
 
 A user cannot be assigned to a branch belonging to another organization.
 
+### Access Levels
+
+The system has three effective access levels:
+
+- **Platform admin** — platform-wide access across all organizations and branches.
+- **Organization superuser** — unrestricted access within their organization, including all branches.
+- **Standard user** — access determined by organization roles and limited to assigned branches for branch-scoped data.
+
+Platform admin access is represented by `users.platform_access`.
+
+Organization superuser versus standard user access is represented by an organization-level access level on the user.
+
 ### Roles and Permissions
 
 Roles and permissions are scoped to an organization.
 
-A user's organization role determines what actions they are permitted to perform.
+A standard user's organization role determines what actions they are permitted to perform.
 
 Branch assignments do not change a user's permissions.
 
 Branch assignments determine which branch-scoped data the user may access.
+
+An organization superuser does not require role-based permission checks because they have every permission within their organization.
 
 ### Platform Administrators
 
@@ -58,19 +73,19 @@ A platform administrator:
 - Does not require branch assignment.
 - Is not subject to organization-level role permissions or branch membership checks.
 
-Platform administrator access is controlled by the user's `platform_access` value.
-
 ## Authorization Model
 
 For an authenticated request:
 
 1. Authenticate the user.
 2. Determine whether the user is a platform administrator.
-3. If the user is a platform administrator, allow access according to platform-level authorization.
+3. If the user is a platform administrator, allow platform-wide access.
 4. Otherwise, verify that the user belongs to the target organization.
-5. Verify that the user's organization role grants the required permission.
-6. If the operation is branch-scoped, verify that the user is assigned to the target branch.
-7. Execute the operation using queries constrained to the authorized organization and branch.
+5. Determine whether the user is an organization superuser.
+6. If the user is an organization superuser, allow access to resources within that organization and all of its branches.
+7. Otherwise, verify that the user's organization role grants the required permission.
+8. If the operation is branch-scoped, verify that the user is assigned to the target branch.
+9. Execute the operation using queries constrained to the authorized organization and branch.
 
 Conceptually:
 
@@ -82,23 +97,29 @@ Authenticate
   │
   ▼
 Platform Admin?
-  ├── Yes ──► Platform Access
+  ├── Yes ──► Platform-wide Access
   │
   └── No
        │
        ▼
    Organization
-   Membership
+     Access
        │
        ▼
+   Superuser?
+   ├── Yes ──► All permissions + all branches
+   │
+   └── No
+        │
+        ▼
    Organization
-    Permission
-       │
-       ▼
+      Role
+        │
+        ▼
    Branch Access
-       │
-       ▼
-      Allow
+        │
+        ▼
+       Allow
 ```
 
 ## Data Ownership
@@ -172,15 +193,17 @@ users
 
 The system must enforce the following invariants:
 
-1. A regular user belongs to exactly one organization.
-2. A platform administrator does not belong to an organization.
-3. A branch belongs to exactly one organization.
-4. A regular user may only be assigned to branches belonging to their organization.
-5. Roles belong to an organization.
-6. A user may only be assigned roles belonging to their organization.
-7. Organization-scoped queries must be constrained to the authorized organization.
-8. Branch-scoped queries must be constrained to the authorized branch.
-9. Platform administrators may access all organizations and branches.
+1. A standard user belongs to exactly one organization.
+2. An organization superuser belongs to exactly one organization.
+3. A platform administrator does not belong to an organization.
+4. A branch belongs to exactly one organization.
+5. A standard user may only be assigned to branches belonging to their organization.
+6. An organization superuser does not require branch assignments to access branches in their organization.
+7. Roles belong to an organization.
+8. A user may only be assigned roles belonging to their organization.
+9. Organization-scoped queries must be constrained to the authorized organization.
+10. Branch-scoped queries must be constrained to the authorized branch for standard users.
+11. Platform administrators may access all organizations and branches.
 
 ## Consequences
 
@@ -188,14 +211,15 @@ The system must enforce the following invariants:
 
 - Roles remain simple and organization-wide.
 - Users can work across multiple branches without duplicating user accounts.
-- Branch access is independent from permissions.
+- Branch access is independent from permissions for standard users.
+- Organization superusers can manage the entire organization without requiring branch assignments.
 - Platform administrators can operate across the entire platform.
 - Organization and branch boundaries are explicit in the data model.
 - Business resources can clearly declare whether they are organization- or branch-scoped.
 
 ### Negative
 
-- Branch-scoped requests require an additional access check.
+- Branch-scoped requests require an additional access check for standard users.
 - Many operational resources will require a `branch_id`.
 - Cross-branch operations require explicit handling.
 - The application must prevent users from combining an organization they belong to with a branch belonging to another organization.
