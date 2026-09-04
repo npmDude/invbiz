@@ -5,6 +5,12 @@ export type AccessTokenPayload = JWTPayload & {
   type: 'access';
 };
 
+export type RefreshTokenPayload = JWTPayload & {
+  sub: string;
+  type: 'refresh';
+  jti: string;
+};
+
 const jwtSecret = process.env.JWT_SECRET;
 
 if (!jwtSecret) {
@@ -37,5 +43,37 @@ export async function verifyAccessToken(token: string) {
     throw new Error('Invalid access token');
   }
 
-  return payload;
+  return payload as AccessTokenPayload;
+}
+
+export async function signRefreshToken(userId: string, jti: string) {
+  return new SignJWT({
+    sub: userId,
+    type: 'refresh',
+    jti,
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('30d')
+    .sign(secret);
+}
+
+export async function verifyRefreshToken(token: string) {
+  const { payload } = await jwtVerify(token, secret, {
+    algorithms: ['HS256'],
+  });
+
+  if (payload.type !== 'refresh') {
+    throw new Error('Invalid refresh token');
+  }
+
+  if (typeof payload.sub !== 'string') {
+    throw new Error('Invalid refresh token');
+  }
+
+  if (typeof payload.jti !== 'string') {
+    throw new Error('Invalid refresh token');
+  }
+
+  return payload as RefreshTokenPayload;
 }
