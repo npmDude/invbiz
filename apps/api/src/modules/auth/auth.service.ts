@@ -56,10 +56,14 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    const accessToken = await signAccessToken(user.id);
+    const [accessToken, refreshToken] = await Promise.all([
+      signAccessToken(user.id),
+      this.createRefreshToken(user.id),
+    ]);
 
     return {
       accessToken,
+      refreshToken,
     };
   }
 
