@@ -1,5 +1,8 @@
 import { and, eq, SQL } from 'drizzle-orm';
 import { db, type Database } from '../../database';
+import { permissionsTable } from '../../database/schemas/permissions';
+import { rolePermissionsTable } from '../../database/schemas/role-permissions';
+import { userRolesTable } from '../../database/schemas/user-roles';
 import { usersTable, type User } from '../../database/schemas/users';
 import { BaseRepository } from '../../shared/base.repository';
 
@@ -38,6 +41,25 @@ export class UsersRepository extends BaseRepository<
     }
 
     return conditions.length > 0 ? and(...conditions) : undefined;
+  }
+
+  async findPermissionKeys(userId: string): Promise<string[]> {
+    const rows = await this.db
+      .select({
+        permission: permissionsTable.id,
+      })
+      .from(userRolesTable)
+      .innerJoin(
+        rolePermissionsTable,
+        eq(rolePermissionsTable.roleId, userRolesTable.roleId),
+      )
+      .innerJoin(
+        permissionsTable,
+        eq(permissionsTable.id, rolePermissionsTable.permissionId),
+      )
+      .where(eq(userRolesTable.userId, userId));
+
+    return rows.map((row) => row.permission);
   }
 }
 

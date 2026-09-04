@@ -14,6 +14,10 @@ export class UsersService extends BaseService<
   constructor(repository: UsersRepository) {
     super(repository);
   }
+
+  findPermissionKeys(userId: string) {
+    return this.repository.findPermissionKeys(userId);
+  }
 }
 
 export const usersService = new UsersService(usersRepository);
