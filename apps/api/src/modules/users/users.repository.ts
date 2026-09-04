@@ -3,7 +3,7 @@ import { db, type Database } from '../../database';
 import { permissionsTable } from '../../database/schemas/permissions';
 import { rolePermissionsTable } from '../../database/schemas/role-permissions';
 import { userRolesTable } from '../../database/schemas/user-roles';
-import { usersTable, type User } from '../../database/schemas/users';
+import { usersTable } from '../../database/schemas/users';
 import { BaseRepository } from '../../shared/base.repository';
 
 export type UserFilters = {
@@ -14,8 +14,7 @@ export type UserFilters = {
 
 export class UsersRepository extends BaseRepository<
   typeof usersTable,
-  UserFilters,
-  User
+  UserFilters
 > {
   constructor(db: Database) {
     super(db, usersTable);
