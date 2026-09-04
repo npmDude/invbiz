@@ -1,10 +1,10 @@
-import { db } from '../index'
-import { seedPermissions } from './permissions'
+import { db } from '../index';
+import { seedPermissions } from './permissions';
 
 async function seed() {
-  await seedPermissions()
+  await seedPermissions();
 }
 
 seed()
   .catch(console.error)
-  .finally(() => db.$client.end())
+  .finally(() => db.$client.end());

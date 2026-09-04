@@ -1,4 +1,10 @@
-import { index, pgTable, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import {
+  index,
+  pgTable,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from 'drizzle-orm/pg-core';
 import { timestamps } from './columns.helpers';
 import { organizationsTable } from './organizations';
 

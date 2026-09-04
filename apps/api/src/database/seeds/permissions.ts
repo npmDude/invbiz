@@ -29,10 +29,7 @@ const permissions = [
 ];
 
 export async function seedPermissions() {
-  await db
-    .insert(permissionsTable)
-    .values(permissions)
-    .onConflictDoNothing({
-      target: permissionsTable.id,
-    });
+  await db.insert(permissionsTable).values(permissions).onConflictDoNothing({
+    target: permissionsTable.id,
+  });
 }

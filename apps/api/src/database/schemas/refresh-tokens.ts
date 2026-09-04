@@ -20,9 +20,7 @@ export const refreshTokensTable = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (table) => [
-    index('refresh_tokens_user_id_idx').on(table.userId),
-  ],
+  (table) => [index('refresh_tokens_user_id_idx').on(table.userId)],
 );
 
 export type RefreshToken = typeof refreshTokensTable.$inferSelect;
