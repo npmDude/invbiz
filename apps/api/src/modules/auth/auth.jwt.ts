@@ -19,6 +19,8 @@ if (!jwtSecret) {
 
 const secret = new TextEncoder().encode(jwtSecret);
 
+export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
 export async function signAccessToken(userId: string) {
   return new SignJWT({
     sub: userId,
@@ -54,7 +56,7 @@ export async function signRefreshToken(userId: string, jti: string) {
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('30d')
+    .setExpirationTime(new Date(Date.now() + REFRESH_TOKEN_TTL_MS))
     .sign(secret);
 }
 

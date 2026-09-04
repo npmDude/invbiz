@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  REFRESH_TOKEN_TTL_MS,
   signAccessToken,
   signRefreshToken,
   verifyAccessToken,
@@ -77,6 +78,16 @@ describe('auth.jwt', () => {
       expect(payload.iat).toEqual(expect.any(Number));
       expect(payload.exp).toEqual(expect.any(Number));
       expect(payload.exp).toBeGreaterThan(payload.iat!);
+    });
+
+    it('should expire after REFRESH_TOKEN_TTL_MS', async () => {
+      const token = await signRefreshToken(userId, jti);
+
+      const payload = await verifyRefreshToken(token);
+      const lifetimeSeconds = payload.exp! - payload.iat!;
+
+      expect(lifetimeSeconds).toBeLessThanOrEqual(REFRESH_TOKEN_TTL_MS / 1000);
+      expect(lifetimeSeconds).toBeGreaterThan(REFRESH_TOKEN_TTL_MS / 1000 - 10);
     });
   });
 
