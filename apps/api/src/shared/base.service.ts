@@ -1,20 +1,39 @@
-export interface Repository<TFilters, TResult> {
-  findOne(filters?: TFilters): Promise<TResult | undefined>;
-  findAll(filters?: TFilters): Promise<TResult[]>;
-}
+import { AppError } from '../lib/app-error';
+import type { Repository } from './base.repository';
 
 export abstract class BaseService<
   TFilters,
   TResult,
-  TRepository extends Repository<TFilters, TResult>,
+  TRepository extends Repository<TFilters, TResult, unknown>,
+  TCreate = TRepository extends Repository<unknown, unknown, infer TInput>
+    ? TInput
+    : never,
 > {
   constructor(protected readonly repository: TRepository) {}
+
+  findAll(filters?: TFilters) {
+    return this.repository.findAll(filters);
+  }
 
   findOne(filters?: TFilters) {
     return this.repository.findOne(filters);
   }
 
-  findAll(filters?: TFilters) {
-    return this.repository.findAll(filters);
+  findById(id: string): Promise<TResult | undefined> {
+    return this.repository.findById(id);
+  }
+
+  create(data: TCreate): Promise<TResult> {
+    return this.repository.create(data);
+  }
+
+  async update(id: string, data: Partial<TCreate>): Promise<TResult> {
+    const record = await this.repository.update(id, data);
+
+    if (!record) {
+      throw new AppError('Record not found.', 404, 'NOT_FOUND');
+    }
+
+    return record;
   }
 }
