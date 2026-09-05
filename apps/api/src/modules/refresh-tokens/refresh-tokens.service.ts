@@ -11,10 +11,6 @@ export class RefreshTokensService extends BaseService<
   RefreshToken,
   RefreshTokensRepository
 > {
-  constructor(repository: RefreshTokensRepository) {
-    super(repository);
-  }
-
   revoke(id: string) {
     return this.update(id, { revokedAt: new Date() });
   }
