@@ -36,4 +36,14 @@ export abstract class BaseService<
 
     return record;
   }
+
+  async delete(id: string): Promise<TResult> {
+    const record = await this.repository.delete(id);
+
+    if (!record) {
+      throw createError(404, 'Record not found.');
+    }
+
+    return record;
+  }
 }

@@ -13,6 +13,7 @@ export interface Repository<TFilters, TResult, TCreate> {
   findById(id: string): Promise<TResult | undefined>;
   create(data: TCreate): Promise<TResult>;
   update(id: string, data: Partial<TCreate>): Promise<TResult | undefined>;
+  delete(id: string): Promise<TResult | undefined>;
 }
 
 export abstract class BaseRepository<
@@ -88,6 +89,15 @@ export abstract class BaseRepository<
       .update(this.table)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .set(data as any)
+      .where(eq(this.table.id, id))
+      .returning()) as unknown as TResult[];
+
+    return record;
+  }
+
+  async delete(id: string): Promise<TResult | undefined> {
+    const [record] = (await this.db
+      .delete(this.table)
       .where(eq(this.table.id, id))
       .returning()) as unknown as TResult[];
 
