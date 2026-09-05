@@ -1,3 +1,4 @@
+import cookieParser from 'cookie-parser';
 import express, { type Express } from 'express';
 import swaggerUi from 'swagger-ui-express';
 
@@ -10,6 +11,7 @@ export function createApp(): Express {
 
   app.disable('x-powered-by');
   app.use(express.json());
+  app.use(cookieParser());
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
   /**

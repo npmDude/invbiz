@@ -1,5 +1,11 @@
 import { Router, type Request } from 'express';
+import { AppError } from '../../lib/app-error';
 import { checkSchema } from '../../middlewares/check-schema';
+import {
+  clearRefreshTokenCookie,
+  resolveRefreshToken,
+  setRefreshTokenCookie,
+} from './auth.cookies';
 import { loginBodySchema, refreshBodySchema } from './auth.schema';
 import type { LoginBody, RefreshBody } from './auth.schema';
 import { authService } from './auth.service';
@@ -46,6 +52,8 @@ router.post(
     try {
       const result = await authService.login(req.body);
 
+      setRefreshTokenCookie(res, result.refreshToken);
+
       return res.status(200).json(result);
     } catch (error) {
       next(error);
@@ -58,6 +66,8 @@ registry.registerPath({
   path: '/auth/refresh',
   tags: ['Auth'],
   summary: 'Refresh tokens',
+  description:
+    'Accepts the refresh token as an HttpOnly cookie (browser clients) or in the request body (mobile and other API clients).',
   request: {
     body: {
       required: true,
@@ -90,11 +100,75 @@ router.post(
     next,
   ) => {
     try {
-      const result = await authService.rotateRefreshToken(
-        req.body.refreshToken,
-      );
+      const refreshToken = resolveRefreshToken(req);
+
+      if (!refreshToken) {
+        throw new AppError(
+          'A refresh token cookie or body field is required.',
+          400,
+          'BAD_REQUEST',
+        );
+      }
+
+      const result = await authService.rotateRefreshToken(refreshToken);
+
+      setRefreshTokenCookie(res, result.refreshToken);
 
       return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+registry.registerPath({
+  method: 'post',
+  path: '/auth/logout',
+  tags: ['Auth'],
+  summary: 'Logout',
+  description:
+    'Accepts the refresh token as an HttpOnly cookie (browser clients) or in the request body (mobile and other API clients).',
+  request: {
+    body: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: refreshBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    204: {
+      description: 'Logged out',
+    },
+    400: {
+      description: 'Invalid request',
+    },
+    401: {
+      description: 'Invalid refresh token',
+    },
+  },
+});
+
+router.post(
+  '/logout',
+  checkSchema({ bodySchema: refreshBodySchema }),
+  async (
+    req: Request<Record<string, never>, unknown, RefreshBody>,
+    res,
+    next,
+  ) => {
+    try {
+      const refreshToken = resolveRefreshToken(req);
+
+      if (refreshToken) {
+        await authService.revokeRefreshToken(refreshToken);
+      }
+
+      clearRefreshTokenCookie(res);
+
+      return res.status(204).send();
     } catch (error) {
       next(error);
     }
