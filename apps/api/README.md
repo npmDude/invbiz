@@ -35,10 +35,18 @@ Start the development server:
 pnpm dev
 ```
 
-Run tests:
+Run only the unit tests (no Docker needed):
 
 ```bash
-pnpm test
+pnpm test:unit
+```
+
+Run only the integration tests (Docker required). DB-backed suites live in
+`test/integration/`; files run sequentially (`--no-file-parallelism`)
+because they share one container database and truncate it between tests:
+
+```bash
+pnpm test:integration
 ```
 
 Seed the database:
@@ -46,6 +54,23 @@ Seed the database:
 ```bash
 pnpm db:seed
 ```
+
+## Database Migrations
+
+Schema live in `src/database/schemas/`; the applied DDL lives in the
+committed `drizzle/` folders. After any schema change, regenerate:
+
+```bash
+npx drizzle-kit generate
+```
+
+Commit the new migration folder together with the schema edit so the two
+can never drift apart. Never hand-edit a migration that has already been
+applied to a shared database — generate a new one on top instead.
+
+`test:integration` applies `drizzle/` to a fresh container on every run,
+so a broken migration or a constraint your fixtures violate fails the
+suite before it ever reaches a real database.
 
 Run type checking:
 
