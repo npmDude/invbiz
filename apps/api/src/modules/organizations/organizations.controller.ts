@@ -67,7 +67,7 @@ registry.registerPath({
 
 router.get(
   '/:id',
-  requireOrganizationMembership({ from: 'params' }),
+  requireOrganizationMembership('params'),
   async (req: Request<{ id: string }>, res, next) => {
     try {
       const organization = await organizationsService.findById(req.params.id);
@@ -165,7 +165,7 @@ registry.registerPath({
 
 router.patch(
   '/:id',
-  requireOrganizationMembership({ from: 'params' }),
+  requireOrganizationMembership('params'),
   checkSchema({ bodySchema: updateOrganizationBodySchema }),
   async (
     req: Request<{ id: string }, unknown, UpdateOrganizationBody>,
