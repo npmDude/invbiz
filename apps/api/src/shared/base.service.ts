@@ -22,8 +22,8 @@ export abstract class BaseService<
     return this.repository.findOne(filters);
   }
 
-  async findById(id: string): Promise<TResult> {
-    const record = await this.repository.findById(id);
+  async findById(id: string, scope?: TFilters): Promise<TResult> {
+    const record = await this.repository.findById(id, scope);
 
     if (!record) {
       throw createError(404, `${this.resourceName} not found.`);
@@ -36,7 +36,13 @@ export abstract class BaseService<
     return this.repository.create(data);
   }
 
-  async update(id: string, data: Partial<TCreate>): Promise<TResult> {
+  async update(
+    id: string,
+    data: Partial<TCreate>,
+    scope?: TFilters,
+  ): Promise<TResult> {
+    await this.findById(id, scope);
+
     const record = await this.repository.update(id, data);
 
     if (!record) {
@@ -46,7 +52,9 @@ export abstract class BaseService<
     return record;
   }
 
-  async delete(id: string): Promise<TResult> {
+  async delete(id: string, scope?: TFilters): Promise<TResult> {
+    await this.findById(id, scope);
+
     const record = await this.repository.delete(id);
 
     if (!record) {
