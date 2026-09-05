@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
 import createError from 'http-errors';
-import type { User } from '../database/schemas/users';
+import type { SafeUser } from '../modules/users/users.service';
 import { verifyAccessToken } from '../modules/auth/auth.jwt';
 import { usersService } from '../modules/users/users.service';
 
@@ -37,7 +37,7 @@ export async function authenticate(
       });
     }
 
-    let user: User;
+    let user: SafeUser;
 
     try {
       user = await usersService.findById(userId);
@@ -57,4 +57,18 @@ export async function authenticate(
   } catch (error) {
     next(error);
   }
+}
+
+/**
+ * Narrow `req.user` after `authenticate` has run. Throws 401 when no user is
+ * present, sparing every handler its own auth-presence check.
+ */
+export function requireRequestUser(req: Request): SafeUser {
+  if (!req.user) {
+    throw createError(401, 'Authentication is required.', {
+      code: 'AUTHENTICATION_REQUIRED',
+    });
+  }
+
+  return req.user;
 }

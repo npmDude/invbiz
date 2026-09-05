@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import createError from 'http-errors';
 
-import type { User } from '../database/schemas/users';
+import type { SafeUser } from '../modules/users/users.service';
 import { signAccessToken } from '../modules/auth/auth.jwt';
 import { usersService } from '../modules/users/users.service';
 import { authenticate } from './authenticate';
@@ -16,13 +16,12 @@ const findById = vi.mocked(usersService.findById);
 
 const userId = '550e8400-e29b-41d4-a716-446655440000';
 
-function makeUser(): User {
+function makeUser(): SafeUser {
   return {
     id: userId,
     organizationId: null,
     name: 'Test User',
     email: 'test@example.com',
-    password: 'hashed',
     accessLevel: 'user',
     createdAt: new Date(),
     updatedAt: new Date(),
