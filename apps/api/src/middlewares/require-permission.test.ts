@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { User } from '../database/schemas/users';
+import type { SafeUser } from '../modules/users/users.service';
 import { authService } from '../modules/auth/auth.service';
 import { requirePermission } from './require-permission';
 
@@ -11,20 +11,19 @@ vi.mock('../modules/auth/auth.service', () => ({
 
 const hasPermissions = vi.mocked(authService.hasPermissions);
 
-function makeUser(): User {
+function makeUser(): SafeUser {
   return {
     id: '550e8400-e29b-41d4-a716-446655440000',
     organizationId: null,
     name: 'Test User',
     email: 'test@example.com',
-    password: 'hashed',
     accessLevel: 'user',
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 }
 
-function setup(user?: User) {
+function setup(user?: SafeUser) {
   const req = { user } as Request;
   const res = {} as Response;
   const next = vi.fn();
