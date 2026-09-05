@@ -1,4 +1,5 @@
 import {
+  and,
   eq,
   type InferInsertModel,
   type InferSelectModel,
@@ -10,7 +11,7 @@ import type { Database } from '../database';
 export interface Repository<TFilters, TResult, TCreate> {
   findOne(filters?: TFilters): Promise<TResult | undefined>;
   findAll(filters?: TFilters): Promise<TResult[]>;
-  findById(id: string): Promise<TResult | undefined>;
+  findById(id: string, scope?: TFilters): Promise<TResult | undefined>;
   create(data: TCreate): Promise<TResult>;
   update(id: string, data: Partial<TCreate>): Promise<TResult | undefined>;
   delete(id: string): Promise<TResult | undefined>;
@@ -50,12 +51,12 @@ export abstract class BaseRepository<
     return result;
   }
 
-  async findById(id: string): Promise<TResult | undefined> {
+  async findById(id: string, scope?: TFilters): Promise<TResult | undefined> {
     const [record] = await this.db
       .select()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from(this.table as any)
-      .where(eq(this.table.id, id))
+      .where(and(eq(this.table.id, id), this.buildFilters(scope)))
       .limit(1);
 
     return record;
