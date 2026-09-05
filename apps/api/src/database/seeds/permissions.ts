@@ -3,6 +3,18 @@ import { permissionsTable } from '../schemas/permissions';
 
 const permissions = [
   {
+    id: 'users.view',
+    description: 'View users',
+  },
+  {
+    id: 'users.create',
+    description: 'Create users',
+  },
+  {
+    id: 'users.manage',
+    description: 'Manage users',
+  },
+  {
     id: 'categories.view',
     description: 'View categories',
   },
