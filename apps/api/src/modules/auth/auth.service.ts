@@ -1,13 +1,16 @@
 import bcrypt from 'bcrypt';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
-import type { User } from '../../database/schemas/users';
 import createError from 'http-errors';
 import { promiseAll } from '../../lib/promise-all';
 import {
   refreshTokensService,
   type RefreshTokensService,
 } from '../refresh-tokens/refresh-tokens.service';
-import { usersService, type UsersService } from '../users/users.service';
+import {
+  usersService,
+  type SafeUser,
+  type UsersService,
+} from '../users/users.service';
 import {
   REFRESH_TOKEN_TTL_MS,
   signAccessToken,
@@ -22,7 +25,7 @@ export class AuthService {
     private readonly refreshTokensService: RefreshTokensService,
   ) {}
 
-  async hasPermissions(user: User, requiredPermissions: string[]) {
+  async hasPermissions(user: SafeUser, requiredPermissions: string[]) {
     if (user.accessLevel === 'admin' || user.accessLevel === 'superuser') {
       return true;
     }
@@ -45,7 +48,10 @@ export class AuthService {
   }
 
   async login({ email, password }: LoginBody) {
-    const user = await this.usersService.findOne({ email });
+    const user = await this.usersService.findOne(
+      { email },
+      { withPassword: true },
+    );
 
     if (!user) {
       throw createError(401, 'Invalid credentials.', {
