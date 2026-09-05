@@ -1,16 +1,15 @@
 import type { Request, Response } from 'express';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { User } from '../database/schemas/users';
+import type { SafeUser } from '../modules/users/users.service';
 import { isAdmin } from './is-admin';
 
-function makeUser(overrides?: Partial<User>): User {
+function makeUser(overrides?: Partial<SafeUser>): SafeUser {
   return {
     id: '550e8400-e29b-41d4-a716-446655440000',
     organizationId: null,
     name: 'Test Admin',
     email: 'admin@example.com',
-    password: 'hashed',
     accessLevel: 'admin',
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -18,7 +17,7 @@ function makeUser(overrides?: Partial<User>): User {
   };
 }
 
-function setup(user?: User) {
+function setup(user?: SafeUser) {
   const req = { user } as Request;
   const res = {} as Response;
   const next = vi.fn();
