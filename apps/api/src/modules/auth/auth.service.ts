@@ -2,6 +2,7 @@ import bcrypt from 'bcrypt';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { User } from '../../database/schemas/users';
 import { AppError } from '../../lib/app-error';
+import { promiseAll } from '../../lib/promise-all';
 import {
   refreshTokensService,
   type RefreshTokensService,
@@ -56,9 +57,12 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
-    const [accessToken, refreshToken] = await Promise.all([
-      signAccessToken(user.id),
-      this.createRefreshToken(user.id),
+    const [accessToken, refreshToken] = await promiseAll([
+      { label: 'accessToken', promise: () => signAccessToken(user.id) },
+      {
+        label: 'refreshToken',
+        promise: () => this.createRefreshToken(user.id),
+      },
     ]);
 
     return {
@@ -123,9 +127,12 @@ export class AuthService {
 
     await this.refreshTokensService.revoke(record.id);
 
-    const [accessToken, refreshToken] = await Promise.all([
-      signAccessToken(record.userId),
-      this.createRefreshToken(record.userId),
+    const [accessToken, refreshToken] = await promiseAll([
+      { label: 'accessToken', promise: () => signAccessToken(record.userId) },
+      {
+        label: 'refreshToken',
+        promise: () => this.createRefreshToken(record.userId),
+      },
     ]);
 
     return {

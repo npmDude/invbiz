@@ -1,17 +1,22 @@
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { z } from 'zod';
 
-import { registry } from '../../openapi/registry';
+import { defineSchema } from '../../lib/define-schema';
 
-extendZodWithOpenApi(z);
-
-export const loginBodySchema = z
-  .object({
+export const loginBodySchema = defineSchema(
+  'LoginBody',
+  z.object({
     email: z.email(),
     password: z.string().min(1),
-  })
-  .openapi('LoginBody');
-
-registry.register('LoginBody', loginBodySchema);
+  }),
+);
 
 export type LoginBody = z.infer<typeof loginBodySchema>;
+
+export const refreshBodySchema = defineSchema(
+  'RefreshBody',
+  z.object({
+    refreshToken: z.string().min(1),
+  }),
+);
+
+export type RefreshBody = z.infer<typeof refreshBodySchema>;

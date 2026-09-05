@@ -1,6 +1,7 @@
 import { Router, type Request } from 'express';
 import { checkSchema } from '../../middlewares/check-schema';
-import { loginBodySchema, type LoginBody } from './auth.schema';
+import { loginBodySchema, refreshBodySchema } from './auth.schema';
+import type { LoginBody, RefreshBody } from './auth.schema';
 import { authService } from './auth.service';
 import { registry } from '../../openapi/registry';
 
@@ -44,6 +45,54 @@ router.post(
   ) => {
     try {
       const result = await authService.login(req.body);
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+registry.registerPath({
+  method: 'post',
+  path: '/auth/refresh',
+  tags: ['Auth'],
+  summary: 'Refresh tokens',
+  request: {
+    body: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: refreshBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'Tokens refreshed',
+    },
+    400: {
+      description: 'Invalid request',
+    },
+    401: {
+      description: 'Invalid refresh token',
+    },
+  },
+});
+
+router.post(
+  '/refresh',
+  checkSchema({ bodySchema: refreshBodySchema }),
+  async (
+    req: Request<Record<string, never>, unknown, RefreshBody>,
+    res,
+    next,
+  ) => {
+    try {
+      const result = await authService.rotateRefreshToken(
+        req.body.refreshToken,
+      );
 
       return res.status(200).json(result);
     } catch (error) {
