@@ -1,9 +1,9 @@
-import type { User } from '../database/schemas/users';
+import type { SafeUser } from '../modules/users/users.service';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: User;
+      user?: SafeUser;
     }
   }
 }
