@@ -1,5 +1,5 @@
 import { Router, type Request } from 'express';
-import { AppError } from '../../lib/app-error';
+import createError from 'http-errors';
 import { checkSchema } from '../../middlewares/check-schema';
 import {
   clearRefreshTokenCookie,
@@ -103,10 +103,9 @@ router.post(
       const refreshToken = resolveRefreshToken(req);
 
       if (!refreshToken) {
-        throw new AppError(
-          'A refresh token cookie or body field is required.',
+        throw createError(
           400,
-          'BAD_REQUEST',
+          'A refresh token cookie or body field is required.',
         );
       }
 

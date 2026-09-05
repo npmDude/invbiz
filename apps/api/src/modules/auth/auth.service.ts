@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { User } from '../../database/schemas/users';
-import { AppError } from '../../lib/app-error';
+import createError from 'http-errors';
 import { promiseAll } from '../../lib/promise-all';
 import {
   refreshTokensService,
@@ -48,13 +48,17 @@ export class AuthService {
     const user = await this.usersService.findOne({ email });
 
     if (!user) {
-      throw new Error('Invalid credentials');
+      throw createError(401, 'Invalid credentials.', {
+        code: 'INVALID_CREDENTIALS',
+      });
     }
 
     const valid = await this.verifyPassword(password, user.password);
 
     if (!valid) {
-      throw new Error('Invalid credentials');
+      throw createError(401, 'Invalid credentials.', {
+        code: 'INVALID_CREDENTIALS',
+      });
     }
 
     const [accessToken, refreshToken] = await promiseAll([
@@ -85,7 +89,9 @@ export class AuthService {
   }
 
   private invalidRefreshToken() {
-    return new AppError('Invalid refresh token.', 401, 'INVALID_REFRESH_TOKEN');
+    return createError(401, 'Invalid refresh token.', {
+      code: 'INVALID_REFRESH_TOKEN',
+    });
   }
 
   async createRefreshToken(userId: string) {

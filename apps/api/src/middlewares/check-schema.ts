@@ -7,12 +7,13 @@ interface Input {
 }
 
 export function checkSchema({ querySchema, bodySchema }: Input) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     if (querySchema) {
       const result = querySchema.safeParse(req.query);
 
       if (!result.success) {
-        return res.status(400).json(result.error);
+        next(result.error);
+        return;
       }
     }
 
@@ -20,7 +21,8 @@ export function checkSchema({ querySchema, bodySchema }: Input) {
       const result = bodySchema.safeParse(req.body);
 
       if (!result.success) {
-        return res.status(400).json(result.error);
+        next(result.error);
+        return;
       }
     }
 

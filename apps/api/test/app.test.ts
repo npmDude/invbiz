@@ -17,7 +17,7 @@ describe('API application', () => {
     expect(response.status).toBe(404);
     expect(response.body).toEqual({
       error: {
-        code: 'NOT_FOUND',
+        code: 'NOT_FOUND_ERROR',
         message: 'The requested resource was not found.',
       },
     });

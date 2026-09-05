@@ -1,7 +1,17 @@
+import createError from 'http-errors';
 import type { ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 
-import { AppError } from '../lib/app-error.js';
+/**
+ * Derive a response code from an `http-errors` constructor name,
+ * e.g. `NotFoundError` -> `NOT_FOUND_ERROR`.
+ */
+function toErrorCode(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toUpperCase();
+}
 
 export const errorHandler: ErrorRequestHandler = (
   error,
@@ -11,10 +21,12 @@ export const errorHandler: ErrorRequestHandler = (
 ) => {
   void next;
 
-  if (error instanceof AppError) {
-    response.status(error.statusCode).json({
+  if (createError.isHttpError(error)) {
+    const { code } = error as { code?: unknown };
+
+    response.status(error.status).json({
       error: {
-        code: error.code,
+        code: typeof code === 'string' ? code : toErrorCode(error.name),
         message: error.message,
       },
     });

@@ -2,7 +2,7 @@ import cookieParser from 'cookie-parser';
 import express, { type Express } from 'express';
 import swaggerUi from 'swagger-ui-express';
 
-import { AppError } from './lib/app-error';
+import createError from 'http-errors';
 import { errorHandler } from './middlewares/error-handler';
 import { openApiDocument } from './openapi';
 import { setupRoutes } from './routes';
@@ -31,9 +31,7 @@ export function createApp(): Express {
   setupRoutes(app);
 
   app.use((_request, _response, next) => {
-    next(
-      new AppError('The requested resource was not found.', 404, 'NOT_FOUND'),
-    );
+    next(createError(404, 'The requested resource was not found.'));
   });
 
   app.use(errorHandler);

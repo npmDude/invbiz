@@ -1,4 +1,4 @@
-import { AppError } from '../lib/app-error';
+import createError from 'http-errors';
 import type { Repository } from './base.repository';
 
 export abstract class BaseService<
@@ -31,7 +31,7 @@ export abstract class BaseService<
     const record = await this.repository.update(id, data);
 
     if (!record) {
-      throw new AppError('Record not found.', 404, 'NOT_FOUND');
+      throw createError(404, 'Record not found.');
     }
 
     return record;
