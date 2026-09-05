@@ -15,6 +15,26 @@ const permissions = [
     description: 'Manage users',
   },
   {
+    id: 'organizations.view',
+    description: 'View organizations',
+  },
+  {
+    id: 'organizations.manage',
+    description: 'Manage organizations',
+  },
+  {
+    id: 'branches.view',
+    description: 'View branches',
+  },
+  {
+    id: 'branches.create',
+    description: 'Create branches',
+  },
+  {
+    id: 'branches.manage',
+    description: 'Manage branches',
+  },
+  {
     id: 'categories.view',
     description: 'View categories',
   },
