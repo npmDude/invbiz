@@ -2,6 +2,12 @@ import { z } from 'zod';
 
 import { defineSchema } from '../../lib/define-schema';
 
+export const organizationIdParamsSchema = z.object({
+  id: z.uuid(),
+});
+
+export type OrganizationIdParams = z.infer<typeof organizationIdParamsSchema>;
+
 export const createOrganizationBodySchema = defineSchema(
   'CreateOrganizationBody',
   z.object({
