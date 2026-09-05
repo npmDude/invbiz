@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import createError from 'http-errors';
+
 import type { RefreshToken } from '../../database/schemas/refresh-tokens';
 import type { User } from '../../database/schemas/users';
 import type { RefreshTokensService } from '../refresh-tokens/refresh-tokens.service';
@@ -54,7 +56,15 @@ function setup() {
         return record;
       },
     ),
-    findById: vi.fn(async (id: string) => records.get(id)),
+    findById: vi.fn(async (id: string) => {
+      const record = records.get(id);
+
+      if (!record) {
+        throw createError(404, 'Refresh token not found.');
+      }
+
+      return record;
+    }),
     revoke: vi.fn(async (id: string) => {
       records.get(id)!.revokedAt = new Date();
     }),

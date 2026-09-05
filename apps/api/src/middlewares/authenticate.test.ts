@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import createError from 'http-errors';
+
 import type { User } from '../database/schemas/users';
 import { signAccessToken } from '../modules/auth/auth.jwt';
 import { usersService } from '../modules/users/users.service';
@@ -106,7 +108,7 @@ describe('authenticate', () => {
   });
 
   it('should reject a valid token for a deleted user', async () => {
-    findById.mockResolvedValue(undefined);
+    findById.mockRejectedValue(createError(404, 'User not found.'));
     const token = await signAccessToken(userId);
     const { req, res, next } = setup({ authorization: `Bearer ${token}` });
 

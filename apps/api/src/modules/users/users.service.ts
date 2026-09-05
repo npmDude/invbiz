@@ -16,4 +16,4 @@ export class UsersService extends BaseService<
   }
 }
 
-export const usersService = new UsersService(usersRepository);
+export const usersService = new UsersService(usersRepository, 'User');

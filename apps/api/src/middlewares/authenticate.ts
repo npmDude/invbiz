@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
 import createError from 'http-errors';
+import type { User } from '../database/schemas/users';
 import { verifyAccessToken } from '../modules/auth/auth.jwt';
 import { usersService } from '../modules/users/users.service';
 
@@ -36,12 +37,18 @@ export async function authenticate(
       });
     }
 
-    const user = await usersService.findById(userId);
+    let user: User;
 
-    if (!user) {
-      throw createError(401, 'Invalid access token.', {
-        code: 'INVALID_ACCESS_TOKEN',
-      });
+    try {
+      user = await usersService.findById(userId);
+    } catch (error) {
+      if (createError.isHttpError(error) && error.status === 404) {
+        throw createError(401, 'Invalid access token.', {
+          code: 'INVALID_ACCESS_TOKEN',
+        });
+      }
+
+      throw error;
     }
 
     req.user = user;

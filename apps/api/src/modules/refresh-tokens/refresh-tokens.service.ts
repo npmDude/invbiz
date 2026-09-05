@@ -18,4 +18,5 @@ export class RefreshTokensService extends BaseService<
 
 export const refreshTokensService = new RefreshTokensService(
   refreshTokensRepository,
+  'Refresh token',
 );

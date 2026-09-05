@@ -9,7 +9,10 @@ export abstract class BaseService<
     ? TInput
     : never,
 > {
-  constructor(protected readonly repository: TRepository) {}
+  constructor(
+    protected readonly repository: TRepository,
+    private readonly resourceName = 'Record',
+  ) {}
 
   findAll(filters?: TFilters) {
     return this.repository.findAll(filters);
@@ -19,8 +22,14 @@ export abstract class BaseService<
     return this.repository.findOne(filters);
   }
 
-  findById(id: string): Promise<TResult | undefined> {
-    return this.repository.findById(id);
+  async findById(id: string): Promise<TResult> {
+    const record = await this.repository.findById(id);
+
+    if (!record) {
+      throw createError(404, `${this.resourceName} not found.`);
+    }
+
+    return record;
   }
 
   create(data: TCreate): Promise<TResult> {
@@ -31,7 +40,7 @@ export abstract class BaseService<
     const record = await this.repository.update(id, data);
 
     if (!record) {
-      throw createError(404, 'Record not found.');
+      throw createError(404, `${this.resourceName} not found.`);
     }
 
     return record;
@@ -41,7 +50,7 @@ export abstract class BaseService<
     const record = await this.repository.delete(id);
 
     if (!record) {
-      throw createError(404, 'Record not found.');
+      throw createError(404, `${this.resourceName} not found.`);
     }
 
     return record;

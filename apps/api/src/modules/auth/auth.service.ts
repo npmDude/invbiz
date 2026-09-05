@@ -94,6 +94,18 @@ export class AuthService {
     });
   }
 
+  private async findRefreshToken(id: string) {
+    try {
+      return await this.refreshTokensService.findById(id);
+    } catch (error) {
+      if (createError.isHttpError(error) && error.status === 404) {
+        throw this.invalidRefreshToken();
+      }
+
+      throw error;
+    }
+  }
+
   async createRefreshToken(userId: string) {
     const id = randomUUID();
     const token = await signRefreshToken(userId, id);
@@ -117,10 +129,9 @@ export class AuthService {
       throw this.invalidRefreshToken();
     }
 
-    const record = await this.refreshTokensService.findById(payload.jti);
+    const record = await this.findRefreshToken(payload.jti);
 
     if (
-      !record ||
       record.userId !== payload.sub ||
       !this.tokenHashesMatch(token, record.tokenHash)
     ) {
@@ -156,10 +167,9 @@ export class AuthService {
       throw this.invalidRefreshToken();
     }
 
-    const record = await this.refreshTokensService.findById(payload.jti);
+    const record = await this.findRefreshToken(payload.jti);
 
     if (
-      !record ||
       record.userId !== payload.sub ||
       !this.tokenHashesMatch(token, record.tokenHash)
     ) {
