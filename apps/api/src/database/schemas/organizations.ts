@@ -8,3 +8,5 @@ export const organizationsTable = pgTable('organizations', {
 
   ...timestamps,
 });
+
+export type Organization = typeof organizationsTable.$inferSelect;
