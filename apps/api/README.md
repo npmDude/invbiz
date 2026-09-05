@@ -79,7 +79,7 @@ Never commit `.env` or production secrets to the repository.
 
 ## API Documentation
 
-The health endpoint is available at `GET /api/health`. Interactive OpenAPI documentation is available at `/api/docs` when the development server is running.
+The health endpoint is available at `GET /health`. Interactive OpenAPI documentation is available at `/docs` when the development server is running.
 
 ## Design Principles
 

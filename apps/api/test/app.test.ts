@@ -5,7 +5,7 @@ import { createApp } from '../src/app.js';
 
 describe('API application', () => {
   it('reports that the API is available', async () => {
-    const response = await request(createApp()).get('/api/health');
+    const response = await request(createApp()).get('/health');
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ status: 'ok' });

@@ -5,6 +5,7 @@ import swaggerUi from 'swagger-ui-express';
 import { AppError } from './lib/app-error';
 import { errorHandler } from './middlewares/error-handler';
 import { openApiDocument } from './openapi';
+import { setupRoutes } from './routes';
 
 export function createApp(): Express {
   const app = express();
@@ -12,20 +13,22 @@ export function createApp(): Express {
   app.disable('x-powered-by');
   app.use(express.json());
   app.use(cookieParser());
-  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 
   /**
    * @openapi
-   * /api/health:
+   * /health:
    *   get:
    *     summary: Check API availability
    *     responses:
    *       '200':
    *         description: The API is available
    */
-  app.get('/api/health', (_request, response) => {
+  app.get('/health', (_request, response) => {
     response.status(200).json({ status: 'ok' });
   });
+
+  setupRoutes(app);
 
   app.use((_request, _response, next) => {
     next(
