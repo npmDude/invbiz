@@ -1,26 +1,26 @@
-import { Router, type Request } from 'express';
-import { authenticate } from '../../middlewares/authenticate';
-import { checkSchema } from '../../middlewares/check-schema';
+import { ApiRouter } from '../../lib/api-router';
+import { resolveOrganizationScope } from '../../lib/organization-scope';
 import { isAdmin } from '../../middlewares/is-admin';
-import { requireOrganizationMembership } from '../../middlewares/require-organization-membership';
-import { registry } from '../../openapi/registry';
 import {
   createOrganizationBodySchema,
+  organizationIdParamsSchema,
   updateOrganizationBodySchema,
-  type CreateOrganizationBody,
-  type UpdateOrganizationBody,
 } from './organizations.schema';
 import { organizationsService } from './organizations.service';
 
-const router = Router();
+const api = new ApiRouter('/organizations');
 
-router.use(authenticate);
-
-registry.registerPath({
+api.endpoint({
   method: 'get',
-  path: '/organizations',
-  tags: ['Organizations'],
+  path: '/',
   summary: 'List organizations',
+  tags: ['Organizations'],
+  middlewares: [isAdmin],
+  handler: async () => {
+    const organizations = await organizationsService.findAll();
+
+    return organizations;
+  },
   responses: {
     200: {
       description: 'Organizations retrieved',
@@ -34,21 +34,19 @@ registry.registerPath({
   },
 });
 
-router.get('/', isAdmin, async (_req, res, next) => {
-  try {
-    const organizations = await organizationsService.findAll();
-
-    return res.status(200).json(organizations);
-  } catch (error) {
-    next(error);
-  }
-});
-
-registry.registerPath({
+api.endpoint({
   method: 'get',
-  path: '/organizations/{id}',
-  tags: ['Organizations'],
+  path: '/:id',
   summary: 'Get an organization',
+  tags: ['Organizations'],
+  paramsSchema: organizationIdParamsSchema,
+  requiredPermission: 'organizations.view',
+  handler: async ({ params, auth: { user: requester } }) => {
+    resolveOrganizationScope(requester, params.id);
+    const organization = await organizationsService.findById(params.id);
+
+    return organization;
+  },
   responses: {
     200: {
       description: 'Organization retrieved',
@@ -65,34 +63,18 @@ registry.registerPath({
   },
 });
 
-router.get(
-  '/:id',
-  requireOrganizationMembership('params'),
-  async (req: Request<{ id: string }>, res, next) => {
-    try {
-      const organization = await organizationsService.findById(req.params.id);
-
-      return res.status(200).json(organization);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-registry.registerPath({
+api.endpoint({
   method: 'post',
-  path: '/organizations',
-  tags: ['Organizations'],
+  path: '/',
   summary: 'Create an organization',
-  request: {
-    body: {
-      required: true,
-      content: {
-        'application/json': {
-          schema: createOrganizationBodySchema,
-        },
-      },
-    },
+  tags: ['Organizations'],
+  dataSchema: createOrganizationBodySchema,
+  middlewares: [isAdmin],
+  statusCode: 201,
+  handler: async ({ data }) => {
+    const organization = await organizationsService.create(data);
+
+    return organization;
   },
   responses: {
     201: {
@@ -110,39 +92,21 @@ registry.registerPath({
   },
 });
 
-router.post(
-  '/',
-  isAdmin,
-  checkSchema({ bodySchema: createOrganizationBodySchema }),
-  async (
-    req: Request<Record<string, never>, unknown, CreateOrganizationBody>,
-    res,
-    next,
-  ) => {
-    try {
-      const organization = await organizationsService.create(req.body);
-
-      return res.status(201).json(organization);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-registry.registerPath({
+api.endpoint({
   method: 'patch',
-  path: '/organizations/{id}',
-  tags: ['Organizations'],
+  path: '/:id',
   summary: 'Update an organization',
-  request: {
-    body: {
-      required: true,
-      content: {
-        'application/json': {
-          schema: updateOrganizationBodySchema,
-        },
-      },
-    },
+  tags: ['Organizations'],
+  paramsSchema: organizationIdParamsSchema,
+  dataSchema: updateOrganizationBodySchema,
+  requiredPermission: 'organizations.manage',
+  handler: async ({ params, data, auth: { user: requester } }) => {
+    resolveOrganizationScope(requester, params.id);
+    const update = data.name === undefined ? {} : { name: data.name };
+
+    const organization = await organizationsService.update(params.id, update);
+
+    return organization;
   },
   responses: {
     200: {
@@ -163,35 +127,17 @@ registry.registerPath({
   },
 });
 
-router.patch(
-  '/:id',
-  requireOrganizationMembership('params'),
-  checkSchema({ bodySchema: updateOrganizationBodySchema }),
-  async (
-    req: Request<{ id: string }, unknown, UpdateOrganizationBody>,
-    res,
-    next,
-  ) => {
-    try {
-      const data = req.body.name === undefined ? {} : { name: req.body.name };
-
-      const organization = await organizationsService.update(
-        req.params.id,
-        data,
-      );
-
-      return res.status(200).json(organization);
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-registry.registerPath({
+api.endpoint({
   method: 'delete',
-  path: '/organizations/{id}',
-  tags: ['Organizations'],
+  path: '/:id',
   summary: 'Delete an organization',
+  tags: ['Organizations'],
+  paramsSchema: organizationIdParamsSchema,
+  middlewares: [isAdmin],
+  statusCode: 204,
+  handler: async ({ params }) => {
+    await organizationsService.delete(params.id);
+  },
   responses: {
     204: {
       description: 'Organization deleted',
@@ -208,18 +154,4 @@ registry.registerPath({
   },
 });
 
-router.delete(
-  '/:id',
-  isAdmin,
-  async (req: Request<{ id: string }>, res, next) => {
-    try {
-      await organizationsService.delete(req.params.id);
-
-      return res.status(204).send();
-    } catch (error) {
-      next(error);
-    }
-  },
-);
-
-export default router;
+export default api.router;
