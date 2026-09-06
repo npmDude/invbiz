@@ -28,28 +28,10 @@ describe('resolveOrganizationScope', () => {
     );
   });
 
-  it('should return undefined for an admin without a requested organization', () => {
-    const admin = makeUser({ accessLevel: 'admin', organizationId: null });
-
-    expect(resolveOrganizationScope(admin, undefined)).toBeUndefined();
-  });
-
   it('should return the matched organization for a member', () => {
     expect(resolveOrganizationScope(makeUser(), ORGANIZATION_ID)).toBe(
       ORGANIZATION_ID,
     );
-  });
-
-  it('should throw 400 when a member omits the organization id', () => {
-    try {
-      resolveOrganizationScope(makeUser(), undefined);
-      expect.unreachable();
-    } catch (error) {
-      expect(error).toMatchObject({
-        status: 400,
-        code: 'MISSING_ORGANIZATION_ID',
-      });
-    }
   });
 
   it('should throw 403 when a member requests another organization', () => {

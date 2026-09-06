@@ -80,50 +80,20 @@ api.endpoint({
   path: '/',
   summary: 'Create a user',
   tags: ['Users'],
-  querySchema: listUsersQuerySchema,
   dataSchema: createUserBodySchema,
   requiredPermission: 'users.create',
   statusCode: 201,
-  handler: async ({ query, data, auth: { user: requester } }) => {
+  handler: async ({ data, auth: { user: requester } }) => {
     const accessLevel = data.accessLevel ?? 'user';
-    let organizationId = data.organizationId;
-
-    if (requester.accessLevel === 'admin') {
-      if (accessLevel === 'admin') {
-        if (organizationId !== undefined) {
-          throw createError(
-            400,
-            'Admin users must not belong to an organization.',
-          );
-        }
-      } else if (!organizationId) {
-        throw createError(
-          400,
-          'An organization id is required for non-admin users.',
-        );
-      }
-    } else {
-      if (accessLevel === 'admin') {
-        throw createError(403, 'Insufficient permissions.', {
-          code: 'INSUFFICIENT_PERMISSIONS',
-        });
-      }
-
-      const scope = resolveOrganizationScope(requester, query.organizationId);
-
-      if (organizationId !== undefined && organizationId !== scope) {
-        throw createError(403, 'Insufficient permissions.', {
-          code: 'INSUFFICIENT_PERMISSIONS',
-        });
-      }
-
-      organizationId = scope;
-    }
+    const organizationId =
+      requester.accessLevel === 'admin'
+        ? data.organizationId
+        : resolveOrganizationScope(requester, data.organizationId);
 
     const password = await authService.hashPassword(data.password);
 
     const user = await usersService.create({
-      ...(organizationId !== undefined ? { organizationId } : {}),
+      organizationId,
       name: data.name,
       email: data.email,
       password,
@@ -164,12 +134,6 @@ api.endpoint({
     );
 
     if (requester.accessLevel !== 'admin') {
-      if (data.accessLevel === 'admin') {
-        throw createError(403, 'Insufficient permissions.', {
-          code: 'INSUFFICIENT_PERMISSIONS',
-        });
-      }
-
       if (
         data.organizationId !== undefined &&
         data.organizationId !== scopeOrganizationId

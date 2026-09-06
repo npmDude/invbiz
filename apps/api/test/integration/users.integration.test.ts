@@ -14,6 +14,7 @@ const hasTestDb =
 
 interface Actor {
   userId: string;
+  organizationId: string | null;
   accessToken: string;
 }
 
@@ -26,7 +27,11 @@ async function loginAs(
     .post('/auth/login')
     .send({ email: user.email, password })
     .expect(200);
-  return { userId: user.id, accessToken: login.body.accessToken as string };
+  return {
+    userId: user.id,
+    organizationId: user.organizationId,
+    accessToken: login.body.accessToken as string,
+  };
 }
 
 function expectNoPassword(body: unknown) {
@@ -64,14 +69,24 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
     });
 
     it('should list users without password hashes for an admin', async () => {
-      await loginAs(app, { email: 'listed@example.com' });
+      const organization = await createTestOrganization('Listed Org');
+      const first = await loginAs(app, {
+        email: 'listed@example.com',
+        organizationId: organization.id,
+      });
+      const second = await loginAs(app, {
+        email: 'listed-two@example.com',
+        organizationId: organization.id,
+      });
 
       const response = await request(app)
-        .get('/users')
+        .get(`/users?organizationId=${organization.id}`)
         .set(auth(admin.accessToken))
         .expect(200);
 
-      expect(response.body.length).toBeGreaterThanOrEqual(2);
+      const ids = (response.body as { id: string }[]).map((user) => user.id);
+      expect(ids).toContain(first.userId);
+      expect(ids).toContain(second.userId);
       expectNoPassword(response.body);
     });
 
@@ -95,7 +110,7 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
         .set(auth(member.accessToken))
         .expect(400);
 
-      expect(response.body.error.code).toBe('MISSING_ORGANIZATION_ID');
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('should reject a member querying another organization', async () => {
@@ -145,7 +160,7 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
       const target = await loginAs(app, { email: 'target@example.com' });
 
       const response = await request(app)
-        .get(`/users/${target.userId}`)
+        .get(`/users/${target.userId}?organizationId=${target.organizationId}`)
         .set(auth(admin.accessToken))
         .expect(200);
 
@@ -193,8 +208,12 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
     });
 
     it('should return 404 for a missing user', async () => {
+      const organization = await createTestOrganization('Missing User Org');
+
       await request(app)
-        .get('/users/00000000-0000-4000-8000-000000000000')
+        .get(
+          `/users/00000000-0000-4000-8000-000000000000?organizationId=${organization.id}`,
+        )
         .set(auth(admin.accessToken))
         .expect(404);
     });
@@ -243,7 +262,7 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
       expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('should require the organization id query for a member create', async () => {
+    it('should require the organization id for a member create', async () => {
       const organization = await createTestOrganization('Creator Org');
       const creator = await loginAs(app, {
         email: 'creator@example.com',
@@ -261,7 +280,7 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
         })
         .expect(400);
 
-      expect(response.body.error.code).toBe('MISSING_ORGANIZATION_ID');
+      expect(response.body.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('should let a member create a user in their organization', async () => {
@@ -273,12 +292,13 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
       await grantPermission(creator.userId, 'users.create');
 
       const response = await request(app)
-        .post(`/users?organizationId=${organization.id}`)
+        .post('/users')
         .set(auth(creator.accessToken))
         .send({
           name: 'Teammate',
           email: 'teammate-create@example.com',
           password: 'password-123',
+          organizationId: organization.id,
         })
         .expect(201);
 
@@ -295,7 +315,9 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
       const target = await loginAs(app, { email: 'target@example.com' });
 
       const response = await request(app)
-        .patch(`/users/${target.userId}`)
+        .patch(
+          `/users/${target.userId}?organizationId=${target.organizationId}`,
+        )
         .set(auth(admin.accessToken))
         .send({ name: 'Renamed' })
         .expect(200);
@@ -327,7 +349,7 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
         .expect(404);
 
       const check = await request(app)
-        .get(`/users/${target.userId}`)
+        .get(`/users/${target.userId}?organizationId=${targetOrg.id}`)
         .set(auth(admin.accessToken))
         .expect(200);
       expect(check.body.name).not.toBe('Hacked');
@@ -339,12 +361,14 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
       const target = await loginAs(app, { email: 'target@example.com' });
 
       await request(app)
-        .delete(`/users/${target.userId}`)
+        .delete(
+          `/users/${target.userId}?organizationId=${target.organizationId}`,
+        )
         .set(auth(admin.accessToken))
         .expect(204);
 
       await request(app)
-        .get(`/users/${target.userId}`)
+        .get(`/users/${target.userId}?organizationId=${target.organizationId}`)
         .set(auth(admin.accessToken))
         .expect(404);
     });
@@ -368,7 +392,7 @@ describe.skipIf(!hasTestDb)('users endpoints', () => {
         .expect(404);
 
       await request(app)
-        .get(`/users/${target.userId}`)
+        .get(`/users/${target.userId}?organizationId=${targetOrg.id}`)
         .set(auth(admin.accessToken))
         .expect(200);
     });
