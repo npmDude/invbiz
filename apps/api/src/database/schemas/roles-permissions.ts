@@ -2,8 +2,8 @@ import { index, pgTable, primaryKey, uuid, varchar } from 'drizzle-orm/pg-core';
 import { permissionsTable } from './permissions';
 import { rolesTable } from './roles';
 
-export const rolePermissionsTable = pgTable(
-  'role_permissions',
+export const rolesPermissionsTable = pgTable(
+  'roles_permissions',
   {
     roleId: uuid('role_id')
       .notNull()
@@ -17,6 +17,6 @@ export const rolePermissionsTable = pgTable(
     primaryKey({
       columns: [table.roleId, table.permissionId],
     }),
-    index('role_permissions_permission_id_idx').on(table.permissionId),
+    index('roles_permissions_permission_id_idx').on(table.permissionId),
   ],
 );
