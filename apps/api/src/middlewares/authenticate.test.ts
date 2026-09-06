@@ -20,6 +20,7 @@ function makeUser(): SafeUser {
   return {
     id: userId,
     organizationId: null,
+    roleId: null,
     name: 'Test User',
     email: 'test@example.com',
     accessLevel: 'user',

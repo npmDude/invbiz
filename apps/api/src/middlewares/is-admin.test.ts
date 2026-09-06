@@ -8,6 +8,7 @@ function makeUser(overrides?: Partial<SafeUser>): SafeUser {
   return {
     id: '550e8400-e29b-41d4-a716-446655440000',
     organizationId: null,
+    roleId: null,
     name: 'Test Admin',
     email: 'admin@example.com',
     accessLevel: 'admin',
