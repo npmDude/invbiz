@@ -26,3 +26,5 @@ export const branchesTable = pgTable(
     ),
   ],
 );
+
+export type Branch = typeof branchesTable.$inferSelect;
