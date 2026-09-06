@@ -18,7 +18,11 @@ export function toSafeUser(user: User): SafeUser {
   return safeUser;
 }
 
-class UserService extends BaseService<UserFilters, SafeUser, UsersRepository> {
+export class UsersService extends BaseService<
+  UserFilters,
+  SafeUser,
+  UsersRepository
+> {
   async findAll(filters?: UserFilters): Promise<SafeUser[]> {
     const users = await super.findAll(filters);
     return users.map((user) => toSafeUser(user as User));
@@ -82,4 +86,4 @@ class UserService extends BaseService<UserFilters, SafeUser, UsersRepository> {
   }
 }
 
-export const usersService = new UserService(usersRepository, 'User');
+export const usersService = new UsersService(usersRepository, 'User');
