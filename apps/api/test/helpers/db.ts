@@ -4,24 +4,23 @@ import { sql } from 'drizzle-orm';
 import { db } from '../../src/database/index.js';
 import { organizationsTable } from '../../src/database/schemas/organizations.js';
 import { permissionsTable } from '../../src/database/schemas/permissions.js';
-import { rolePermissionsTable } from '../../src/database/schemas/role-permissions.js';
+import { rolesPermissionsTable } from '../../src/database/schemas/roles-permissions.js';
 import { rolesTable } from '../../src/database/schemas/roles.js';
 import {
   usersTable,
   type AccessLevel,
 } from '../../src/database/schemas/users.js';
-import { userRolesTable } from '../../src/database/schemas/user-roles.js';
 
 export async function resetDatabase() {
   await db.execute(sql`
     TRUNCATE
       refresh_tokens,
-      user_branches,
-      user_roles,
-      role_permissions,
+      users_branches,
+      roles_permissions,
       branches,
-      roles,
+      categories,
       users,
+      roles,
       organizations,
       permissions
     RESTART IDENTITY CASCADE
@@ -89,9 +88,10 @@ export async function createTestUser(input: CreateTestUserInput = {}) {
 }
 
 /**
- * Grant a permission to a user via a fresh role: upserts the permission row,
- * creates a role in the user's organization, and links both join tables
- * (`role_permissions`, `user_roles`) — mirroring `findPermissionKeys`.
+ * Grant a permission to a user via their single role: upserts the permission
+ * row, reuses (or creates) a role in the user's organization, assigns it via
+ * `users.role_id`, and links it in `roles_permissions` — mirroring
+ * `findPermissionKeys`.
  */
 export async function grantPermission(userId: string, permissionId: string) {
   const [user] = await db
@@ -109,23 +109,39 @@ export async function grantPermission(userId: string, permissionId: string) {
     .values({ id: permissionId, description: `${permissionId} (test)` })
     .onConflictDoNothing({ target: permissionsTable.id });
 
-  const [role] = await db
-    .insert(rolesTable)
-    .values({
-      organizationId: user.organizationId,
-      name: `test-role-${permissionId}-${Date.now()}`,
-    })
-    .returning();
+  let roleId = user.roleId;
 
-  if (!role) {
-    throw new Error('Failed to create test role');
+  if (!roleId) {
+    const [role] = await db
+      .insert(rolesTable)
+      .values({
+        organizationId: user.organizationId,
+        name: `test-role-${Date.now()}`,
+      })
+      .returning();
+
+    if (!role) {
+      throw new Error('Failed to create test role');
+    }
+
+    roleId = role.id;
+
+    await db
+      .update(usersTable)
+      .set({ roleId })
+      .where(sql`${usersTable.id} = ${userId}`);
   }
 
   await db
-    .insert(rolePermissionsTable)
-    .values({ roleId: role.id, permissionId });
+    .insert(rolesPermissionsTable)
+    .values({ roleId, permissionId })
+    .onConflictDoNothing();
 
-  await db.insert(userRolesTable).values({ userId, roleId: role.id });
+  const [role] = await db
+    .select()
+    .from(rolesTable)
+    .where(sql`${rolesTable.id} = ${roleId}`)
+    .limit(1);
 
   return role;
 }
