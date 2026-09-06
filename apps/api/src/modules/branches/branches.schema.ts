@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { defineSchema } from '../../lib/define-schema';
 
 export const listBranchesQuerySchema = z.object({
-  organizationId: z.uuid().optional(),
+  organizationId: z.uuid(),
 });
 
 export type ListBranchesQuery = z.infer<typeof listBranchesQuerySchema>;
@@ -17,7 +17,7 @@ export type BranchIdParams = z.infer<typeof branchIdParamsSchema>;
 export const createBranchBodySchema = defineSchema(
   'CreateBranchBody',
   z.object({
-    organizationId: z.uuid().optional(),
+    organizationId: z.uuid(),
     name: z.string().trim().min(1).max(255),
     address: z.string().trim().min(1).max(255),
   }),
