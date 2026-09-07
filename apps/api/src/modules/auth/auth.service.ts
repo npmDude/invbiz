@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import createError from 'http-errors';
-import { promiseAll } from '../../lib/promise-all';
+import { promiseAll } from '../../shared/promise-all';
 import {
   refreshTokensService,
   type RefreshTokensService,

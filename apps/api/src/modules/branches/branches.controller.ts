@@ -1,6 +1,6 @@
-import { ApiRouter } from '../../lib/api-router';
-import { resolveBranchScope } from '../../lib/branch-scope';
-import { resolveOrganizationScope } from '../../lib/organization-scope';
+import { ApiRouter } from '../../shared/api-router';
+import { resolveBranchScope } from '../../shared/branch-scope';
+import { resolveOrganizationScope } from '../../shared/organization-scope';
 import { branchesService } from './branches.service';
 import {
   branchIdParamsSchema,

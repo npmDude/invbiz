@@ -1,5 +1,5 @@
-import { ApiRouter } from '../../lib/api-router';
-import { resolveOrganizationScope } from '../../lib/organization-scope';
+import { ApiRouter } from '../../shared/api-router';
+import { resolveOrganizationScope } from '../../shared/organization-scope';
 import { categoriesService } from './categories.service';
 import {
   categoryIdParamsSchema,

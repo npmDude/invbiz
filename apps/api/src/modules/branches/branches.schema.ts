@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { defineSchema } from '../../lib/define-schema';
+import { defineSchema } from '../../shared/define-schema';
 
 export const listBranchesQuerySchema = z.object({
   organizationId: z.uuid(),

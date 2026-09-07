@@ -1,6 +1,6 @@
 import createError from 'http-errors';
-import { ApiRouter } from '../../lib/api-router';
-import { resolveOrganizationScope } from '../../lib/organization-scope';
+import { ApiRouter } from '../../shared/api-router';
+import { resolveOrganizationScope } from '../../shared/organization-scope';
 import { authService } from '../auth/auth.service';
 import {
   createUserBodySchema,
