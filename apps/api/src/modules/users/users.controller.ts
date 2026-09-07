@@ -1,6 +1,6 @@
 import createError from 'http-errors';
 import { ApiRouter } from '../../shared/api-router';
-import { resolveOrganizationScope } from '../../shared/organization-scope';
+import { resolveScope } from '../../shared/scope';
 import { authService } from '../auth/auth.service';
 import {
   createUserBodySchema,
@@ -20,10 +20,7 @@ api.endpoint({
   querySchema: listUsersQuerySchema,
   requiredPermission: 'users.view',
   handler: async ({ query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, query.organizationId);
 
     const users = await usersService.findAll({ organizationId });
 
@@ -51,10 +48,7 @@ api.endpoint({
   querySchema: listUsersQuerySchema,
   requiredPermission: 'users.view',
   handler: async ({ params, query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, query.organizationId);
     const user = await usersService.findById(params.id, { organizationId });
 
     return user;
@@ -85,10 +79,7 @@ api.endpoint({
   statusCode: 201,
   handler: async ({ data, auth: { user: requester } }) => {
     const accessLevel = data.accessLevel ?? 'user';
-    const organizationId =
-      requester.accessLevel === 'admin'
-        ? data.organizationId
-        : resolveOrganizationScope(requester, data.organizationId);
+    const { organizationId } = resolveScope(requester, data.organizationId);
 
     const password = await authService.hashPassword(data.password);
 
@@ -128,7 +119,7 @@ api.endpoint({
   dataSchema: updateUserBodySchema,
   requiredPermission: 'users.manage',
   handler: async ({ params, query, data, auth: { user: requester } }) => {
-    const scopeOrganizationId = resolveOrganizationScope(
+    const { organizationId: scopeOrganizationId } = resolveScope(
       requester,
       query.organizationId,
     );
@@ -203,10 +194,7 @@ api.endpoint({
   requiredPermission: 'users.manage',
   statusCode: 204,
   handler: async ({ params, query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, query.organizationId);
     await usersService.delete(params.id, { organizationId });
   },
   responses: {

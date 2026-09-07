@@ -1,5 +1,5 @@
 import { ApiRouter } from '../../shared/api-router';
-import { resolveOrganizationScope } from '../../shared/organization-scope';
+import { resolveScope } from '../../shared/scope';
 import { isAdmin } from '../../middlewares/is-admin';
 import {
   createOrganizationBodySchema,
@@ -42,7 +42,7 @@ api.endpoint({
   paramsSchema: organizationIdParamsSchema,
   requiredPermission: 'organizations.view',
   handler: async ({ params, auth: { user: requester } }) => {
-    resolveOrganizationScope(requester, params.id);
+    resolveScope(requester, params.id);
     const organization = await organizationsService.findById(params.id);
 
     return organization;
@@ -101,7 +101,7 @@ api.endpoint({
   dataSchema: updateOrganizationBodySchema,
   requiredPermission: 'organizations.manage',
   handler: async ({ params, data, auth: { user: requester } }) => {
-    resolveOrganizationScope(requester, params.id);
+    resolveScope(requester, params.id);
     const update = data.name === undefined ? {} : { name: data.name };
 
     const organization = await organizationsService.update(params.id, update);

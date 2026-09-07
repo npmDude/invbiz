@@ -1,6 +1,5 @@
 import { ApiRouter } from '../../shared/api-router';
-import { resolveBranchScope } from '../../shared/branch-scope';
-import { resolveOrganizationScope } from '../../shared/organization-scope';
+import { resolveScope } from '../../shared/scope';
 import { branchesService } from './branches.service';
 import {
   branchIdParamsSchema,
@@ -20,7 +19,7 @@ api.endpoint({
   requiredPermission: 'branches.view',
   handler: async ({ query, auth: { user: requester } }) => {
     return branchesService.findAll(
-      resolveBranchScope(requester, query.organizationId),
+      resolveScope(requester, query.organizationId, { narrowBranches: true }),
     );
   },
   responses: {
@@ -47,7 +46,7 @@ api.endpoint({
   handler: async ({ params, query, auth: { user: requester } }) => {
     const branch = await branchesService.findById(
       params.id,
-      resolveBranchScope(requester, query.organizationId),
+      resolveScope(requester, query.organizationId, { narrowBranches: true }),
     );
 
     return branch;
@@ -77,10 +76,7 @@ api.endpoint({
   requiredPermission: 'branches.create',
   statusCode: 201,
   handler: async ({ data, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      data.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, data.organizationId);
 
     const branch = await branchesService.create({
       organizationId,
@@ -129,7 +125,7 @@ api.endpoint({
     const branch = await branchesService.update(
       params.id,
       update,
-      resolveBranchScope(requester, query.organizationId),
+      resolveScope(requester, query.organizationId, { narrowBranches: true }),
     );
 
     return branch;
@@ -165,7 +161,7 @@ api.endpoint({
   handler: async ({ params, query, auth: { user: requester } }) => {
     await branchesService.delete(
       params.id,
-      resolveBranchScope(requester, query.organizationId),
+      resolveScope(requester, query.organizationId, { narrowBranches: true }),
     );
   },
   responses: {

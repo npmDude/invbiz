@@ -1,5 +1,5 @@
 import { ApiRouter } from '../../shared/api-router';
-import { resolveOrganizationScope } from '../../shared/organization-scope';
+import { resolveScope } from '../../shared/scope';
 import { categoriesService } from './categories.service';
 import {
   categoryIdParamsSchema,
@@ -18,10 +18,7 @@ api.endpoint({
   querySchema: listCategoriesQuerySchema,
   requiredPermission: 'categories.view',
   handler: async ({ query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, query.organizationId);
 
     return categoriesService.findAll({ organizationId });
   },
@@ -47,10 +44,7 @@ api.endpoint({
   querySchema: listCategoriesQuerySchema,
   requiredPermission: 'categories.view',
   handler: async ({ params, query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, query.organizationId);
 
     const category = await categoriesService.findById(params.id, {
       organizationId,
@@ -83,10 +77,7 @@ api.endpoint({
   requiredPermission: 'categories.create',
   statusCode: 201,
   handler: async ({ data, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      data.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, data.organizationId);
 
     const category = await categoriesService.create({
       organizationId,
@@ -126,10 +117,7 @@ api.endpoint({
   dataSchema: updateCategoryBodySchema,
   requiredPermission: 'categories.manage',
   handler: async ({ params, query, data, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, query.organizationId);
 
     const update: Partial<{
       name: string;
@@ -187,10 +175,7 @@ api.endpoint({
   requiredPermission: 'categories.manage',
   statusCode: 204,
   handler: async ({ params, query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
+    const { organizationId } = resolveScope(requester, query.organizationId);
 
     await categoriesService.delete(params.id, { organizationId });
   },
