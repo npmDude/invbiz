@@ -9,6 +9,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { timestamps } from './columns.helpers';
 import { organizationsTable } from './organizations';
+import { rolesTable } from './roles';
 
 export const accessLevelEnum = pgEnum('access_level', [
   'admin',
@@ -38,10 +39,15 @@ export const usersTable = snakeCase.table(
 
     accessLevel: accessLevelEnum().notNull().default('user'),
 
+    roleId: uuid('role_id').references(() => rolesTable.id, {
+      onDelete: 'set null',
+    }),
+
     ...timestamps,
   },
   (table) => [
     index('users_organization_id_idx').on(table.organizationId),
+    index('users_role_id_idx').on(table.roleId),
     check(
       'users_organization_access_check',
       sql`(
@@ -50,6 +56,15 @@ export const usersTable = snakeCase.table(
       ) OR (
         ${table.accessLevel} IN ('superuser', 'user')
         AND ${table.organizationId} IS NOT NULL
+      )`,
+    ),
+    check(
+      'users_role_access_check',
+      sql`(
+        ${table.accessLevel} IN ('admin', 'superuser')
+        AND ${table.roleId} IS NULL
+      ) OR (
+        ${table.accessLevel} = 'user'
       )`,
     ),
   ],
