@@ -17,7 +17,8 @@
     "lint": "eslint . --max-warnings=0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:seed": "tsx src/database/seeds/index.ts"
+    "db:seed": "tsx src/database/seeds/index.ts",
+    "db:create-user": "tsx ../../scripts/create-user.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",

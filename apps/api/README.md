@@ -55,6 +55,22 @@ Seed the database:
 pnpm db:seed
 ```
 
+Create a user via the CLI (lives in `scripts/` at the repo root, outside
+the deployed API bundle). Anything not passed as a flag is prompted for
+interactively:
+
+```bash
+pnpm db:create-user
+pnpm db:create-user -- --name "Ada" --email "ada@example.com" --access-level admin
+```
+
+Any value can also be passed as a flag for non-interactive use (missing
+values still prompt):
+
+```bash
+pnpm db:create-user -- --name "Ada" --email ada@example.com --password secret123 --access-level user --organization-id <uuid>
+```
+
 ## Database Migrations
 
 Schema live in `src/database/schemas/`; the applied DDL lives in the

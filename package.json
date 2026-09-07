@@ -4,5 +4,9 @@
   "packageManager": "pnpm@11.25.0",
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.7.0",
+    "commander": "^15.0.0"
   }
 }
