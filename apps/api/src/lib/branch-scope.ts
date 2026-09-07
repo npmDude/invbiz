@@ -10,7 +10,7 @@ export type BranchScope = {
 /**
  * Resolve the branch scope. Delegates org isolation to
  * {@link resolveOrganizationScope}; `admin` and `superuser` get no branch
- * narrowing, `user` is limited to linked `user_branches`.
+ * narrowing, `user` is limited to linked `users_branches`.
  */
 export function resolveBranchScope(
   requester: SafeUser,
