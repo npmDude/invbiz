@@ -1,8 +1,7 @@
 import { and, eq, SQL } from 'drizzle-orm';
 import { db, type Database } from '../../database';
 import { permissionsTable } from '../../database/schemas/permissions';
-import { rolePermissionsTable } from '../../database/schemas/role-permissions';
-import { userRolesTable } from '../../database/schemas/user-roles';
+import { rolesPermissionsTable } from '../../database/schemas/roles-permissions';
 import { usersTable } from '../../database/schemas/users';
 import { BaseRepository } from '../../shared/base.repository';
 
@@ -47,16 +46,16 @@ export class UsersRepository extends BaseRepository<
       .select({
         permission: permissionsTable.id,
       })
-      .from(userRolesTable)
+      .from(usersTable)
       .innerJoin(
-        rolePermissionsTable,
-        eq(rolePermissionsTable.roleId, userRolesTable.roleId),
+        rolesPermissionsTable,
+        eq(rolesPermissionsTable.roleId, usersTable.roleId),
       )
       .innerJoin(
         permissionsTable,
-        eq(permissionsTable.id, rolePermissionsTable.permissionId),
+        eq(permissionsTable.id, rolesPermissionsTable.permissionId),
       )
-      .where(eq(userRolesTable.userId, userId));
+      .where(eq(usersTable.id, userId));
 
     return rows.map((row) => row.permission);
   }
