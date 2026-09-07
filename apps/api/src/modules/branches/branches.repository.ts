@@ -1,7 +1,7 @@
 import { and, eq, inArray, type SQL } from 'drizzle-orm';
 import { db, type Database } from '../../database';
 import { branchesTable } from '../../database/schemas/branches';
-import { userBranchesTable } from '../../database/schemas/user-branches';
+import { usersBranchesTable } from '../../database/schemas/users-branches';
 import { BaseRepository } from '../../shared/base.repository';
 
 export type BranchFilters = {
@@ -38,9 +38,9 @@ export class BranchesRepository extends BaseRepository<
         inArray(
           branchesTable.id,
           this.db
-            .select({ id: userBranchesTable.branchId })
-            .from(userBranchesTable)
-            .where(eq(userBranchesTable.userId, filters.userId)),
+            .select({ id: usersBranchesTable.branchId })
+            .from(usersBranchesTable)
+            .where(eq(usersBranchesTable.userId, filters.userId)),
         ),
       );
     }

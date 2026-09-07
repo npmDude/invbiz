@@ -1,7 +1,6 @@
 import { ApiRouter } from '../../lib/api-router';
+import { resolveBranchScope } from '../../lib/branch-scope';
 import { resolveOrganizationScope } from '../../lib/organization-scope';
-import type { SafeUser } from '../users/users.service';
-import type { BranchFilters } from './branches.repository';
 import { branchesService } from './branches.service';
 import {
   branchIdParamsSchema,
@@ -12,17 +11,6 @@ import {
 
 const api = new ApiRouter('/branches');
 
-function resolveBranchScope(
-  requester: SafeUser,
-  organizationId: string,
-): BranchFilters {
-  if (requester.accessLevel === 'user') {
-    return { organizationId, userId: requester.id };
-  }
-
-  return { organizationId };
-}
-
 api.endpoint({
   method: 'get',
   path: '/',
@@ -31,13 +19,8 @@ api.endpoint({
   querySchema: listBranchesQuerySchema,
   requiredPermission: 'branches.view',
   handler: async ({ query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
-
     return branchesService.findAll(
-      resolveBranchScope(requester, organizationId),
+      resolveBranchScope(requester, query.organizationId),
     );
   },
   responses: {
@@ -62,13 +45,9 @@ api.endpoint({
   querySchema: listBranchesQuerySchema,
   requiredPermission: 'branches.view',
   handler: async ({ params, query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
     const branch = await branchesService.findById(
       params.id,
-      resolveBranchScope(requester, organizationId),
+      resolveBranchScope(requester, query.organizationId),
     );
 
     return branch;
@@ -137,11 +116,6 @@ api.endpoint({
   dataSchema: updateBranchBodySchema,
   requiredPermission: 'branches.manage',
   handler: async ({ params, query, data, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
-
     const update: Partial<{ name: string; address: string }> = {};
 
     if (data.name !== undefined) {
@@ -155,7 +129,7 @@ api.endpoint({
     const branch = await branchesService.update(
       params.id,
       update,
-      resolveBranchScope(requester, organizationId),
+      resolveBranchScope(requester, query.organizationId),
     );
 
     return branch;
@@ -189,13 +163,9 @@ api.endpoint({
   requiredPermission: 'branches.manage',
   statusCode: 204,
   handler: async ({ params, query, auth: { user: requester } }) => {
-    const organizationId = resolveOrganizationScope(
-      requester,
-      query.organizationId,
-    );
     await branchesService.delete(
       params.id,
-      resolveBranchScope(requester, organizationId),
+      resolveBranchScope(requester, query.organizationId),
     );
   },
   responses: {
