@@ -1,4 +1,4 @@
-import { and, eq, isNull, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import createError from 'http-errors';
 
 import { db, type Database } from '../../database';
@@ -6,6 +6,7 @@ import {
   categoriesTable,
   type Category,
 } from '../../database/schemas/categories';
+import { productsCategoriesTable } from '../../database/schemas/products-categories';
 import { Service } from '../../shared/service';
 import { throwConflictIfUniqueViolation } from '../../shared/unique-violation';
 
@@ -102,6 +103,18 @@ export class CategoriesService extends Service<
     }
   }
 
+  override async delete(
+    id: string,
+    scope?: CategoryFilters,
+  ): Promise<Category> {
+    const current = await this.findById(id, scope);
+    const organizationId = scope?.organizationId ?? current.organizationId;
+
+    await this.assertNoOrphanedProducts(organizationId, id);
+
+    return super.delete(id, scope);
+  }
+
   /**
    * Ensure a parent reference stays inside the same organization and cannot
    * introduce a cycle. A parent scoped to another organization is treated as
@@ -155,6 +168,100 @@ export class CategoriesService extends Service<
       ancestorParentId = ancestor.parentId;
     }
   }
+
+  /**
+   * Reject deleting a category (and its cascading descendants) when any
+   * product would be left without a category. Products require at least one
+   * category, so the last link cannot be removed via category deletion.
+   */
+  private async assertNoOrphanedProducts(
+    organizationId: string,
+    categoryId: string,
+  ): Promise<void> {
+    const idsToDelete = await this.collectDescendantIds(
+      organizationId,
+      categoryId,
+    );
+    idsToDelete.push(categoryId);
+
+    const linksToDelete = await this.db
+      .select({
+        productId: productsCategoriesTable.productId,
+        categoryId: productsCategoriesTable.categoryId,
+      })
+      .from(productsCategoriesTable)
+      .where(inArray(productsCategoriesTable.categoryId, idsToDelete));
+
+    if (linksToDelete.length === 0) {
+      return;
+    }
+
+    const affectedProductIds = [
+      ...new Set(linksToDelete.map((link) => link.productId)),
+    ];
+
+    const allLinks = await this.db
+      .select({ productId: productsCategoriesTable.productId })
+      .from(productsCategoriesTable)
+      .where(inArray(productsCategoriesTable.productId, affectedProductIds));
+
+    const totalByProduct = countLinksByProduct(
+      allLinks.map((link) => link.productId),
+    );
+    const deletedByProduct = countLinksByProduct(
+      linksToDelete.map((link) => link.productId),
+    );
+
+    for (const productId of affectedProductIds) {
+      if (
+        (totalByProduct.get(productId) ?? 0) <=
+        (deletedByProduct.get(productId) ?? 0)
+      ) {
+        throw createError(
+          400,
+          'Cannot delete category because one or more products would be left without a category.',
+        );
+      }
+    }
+  }
+
+  private async collectDescendantIds(
+    organizationId: string,
+    parentId: string,
+  ): Promise<string[]> {
+    const collected: string[] = [];
+    const queue: string[] = [parentId];
+    const visited = new Set<string>([parentId]);
+
+    while (queue.length > 0) {
+      const current = queue.shift() as string;
+      const children = await this.findAll({
+        organizationId,
+        parentId: current,
+      });
+
+      for (const child of children) {
+        if (visited.has(child.id)) {
+          continue;
+        }
+        visited.add(child.id);
+        collected.push(child.id);
+        queue.push(child.id);
+      }
+    }
+
+    return collected;
+  }
+}
+
+function countLinksByProduct(productIds: string[]): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const productId of productIds) {
+    counts.set(productId, (counts.get(productId) ?? 0) + 1);
+  }
+
+  return counts;
 }
 
 export const categoriesService = new CategoriesService(db);
