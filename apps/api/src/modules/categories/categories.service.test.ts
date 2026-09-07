@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { Database } from '../../database';
 import type { Category } from '../../database/schemas/categories';
-import type { CategoriesRepository } from './categories.repository';
+import { Service } from '../../shared/service';
 import { CategoriesService } from './categories.service';
 
 const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
@@ -23,25 +24,14 @@ function makeCategory(overrides: Partial<Category> = {}): Category {
 }
 
 function setup() {
-  const repository = {
-    findAll: vi.fn(),
-    findOne: vi.fn(),
-    findById: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-  } as unknown as CategoriesRepository;
-
-  const service = new CategoriesService(repository, 'Category');
+  const service = new CategoriesService({} as Database);
 
   return {
-    repository: {
-      findAll: vi.mocked(repository.findAll),
-      findOne: vi.mocked(repository.findOne),
-      findById: vi.mocked(repository.findById),
-      create: vi.mocked(repository.create),
-      update: vi.mocked(repository.update),
-      delete: vi.mocked(repository.delete),
+    base: {
+      findOne: vi.spyOn(Service.prototype, 'findOne'),
+      findById: vi.spyOn(Service.prototype, 'findById'),
+      create: vi.spyOn(Service.prototype, 'create'),
+      update: vi.spyOn(Service.prototype, 'update'),
     },
     service,
   };
@@ -49,13 +39,13 @@ function setup() {
 
 describe('CategoriesService', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should create a root category without a parent', async () => {
-    const { repository, service } = setup();
+    const { base, service } = setup();
     const created = makeCategory();
-    repository.create.mockResolvedValue(created);
+    base.create.mockResolvedValue(created);
 
     const result = await service.create({
       organizationId: ORGANIZATION_ID,
@@ -65,16 +55,16 @@ describe('CategoriesService', () => {
     });
 
     expect(result).toBe(created);
-    expect(repository.findById).not.toHaveBeenCalled();
+    expect(base.findOne).not.toHaveBeenCalled();
   });
 
   it('should create a child category with a parent in the same organization', async () => {
-    const { repository, service } = setup();
-    repository.findById.mockResolvedValue(
+    const { base, service } = setup();
+    base.findOne.mockResolvedValue(
       makeCategory({ id: PARENT_ID, parentId: null }),
     );
     const created = makeCategory({ parentId: PARENT_ID });
-    repository.create.mockResolvedValue(created);
+    base.create.mockResolvedValue(created);
 
     const result = await service.create({
       organizationId: ORGANIZATION_ID,
@@ -84,14 +74,15 @@ describe('CategoriesService', () => {
     });
 
     expect(result).toBe(created);
-    expect(repository.findById).toHaveBeenCalledWith(PARENT_ID, {
+    expect(base.findOne).toHaveBeenCalledWith({
+      id: PARENT_ID,
       organizationId: ORGANIZATION_ID,
     });
   });
 
   it('should reject a parent from another organization', async () => {
-    const { repository, service } = setup();
-    repository.findById.mockResolvedValue(undefined);
+    const { base, service } = setup();
+    base.findOne.mockResolvedValue(undefined);
 
     await expect(
       service.create({
@@ -124,22 +115,22 @@ describe('CategoriesService', () => {
   });
 
   it('should reject a parent that is a descendant of the category', async () => {
-    const { repository, service } = setup();
+    const { base, service } = setup();
     const childId = '55555555-5555-4555-8555-555555555555';
+    // The category itself for the scope check in update.
+    base.findById.mockResolvedValue(
+      makeCategory({ id: CATEGORY_ID, parentId: null }),
+    );
     // Parent's ancestor chain leads back to the category being updated.
-    repository.findById.mockImplementation(async (id: string) => {
-      if (id === PARENT_ID) {
+    base.findOne.mockImplementation(async (filters) => {
+      if (filters?.id === PARENT_ID) {
         return makeCategory({ id: PARENT_ID, parentId: childId });
       }
-      if (id === childId) {
+      if (filters?.id === childId) {
         return makeCategory({ id: childId, parentId: CATEGORY_ID });
       }
       return undefined;
     });
-    // findById for the category itself (scope check in update).
-    // findById for the category itself (scope check in update).
-    const current = makeCategory({ id: CATEGORY_ID, parentId: null });
-    repository.findById.mockImplementationOnce(async () => current);
 
     await expect(
       service.update(
@@ -151,8 +142,8 @@ describe('CategoriesService', () => {
   });
 
   it('should reject moving a category to another organization', async () => {
-    const { repository, service } = setup();
-    repository.findById.mockResolvedValue(makeCategory());
+    const { base, service } = setup();
+    base.findById.mockResolvedValue(makeCategory());
 
     await expect(
       service.update(
@@ -167,12 +158,10 @@ describe('CategoriesService', () => {
   });
 
   it('should allow detaching a category to the root', async () => {
-    const { repository, service } = setup();
-    repository.findById.mockResolvedValue(
-      makeCategory({ parentId: PARENT_ID }),
-    );
+    const { base, service } = setup();
+    base.findById.mockResolvedValue(makeCategory({ parentId: PARENT_ID }));
     const updated = makeCategory({ parentId: null });
-    repository.update.mockResolvedValue(updated);
+    base.update.mockResolvedValue(updated);
 
     const result = await service.update(
       CATEGORY_ID,
@@ -184,8 +173,8 @@ describe('CategoriesService', () => {
   });
 
   it('should map a duplicate name to 409 on create', async () => {
-    const { repository, service } = setup();
-    repository.create.mockRejectedValue(
+    const { base, service } = setup();
+    base.create.mockRejectedValue(
       Object.assign(new Error('duplicate key value'), { code: '23505' }),
     );
 
@@ -203,9 +192,9 @@ describe('CategoriesService', () => {
   });
 
   it('should map a duplicate name to 409 on update', async () => {
-    const { repository, service } = setup();
-    repository.findById.mockResolvedValue(makeCategory());
-    repository.update.mockRejectedValue(
+    const { base, service } = setup();
+    base.findById.mockResolvedValue(makeCategory());
+    base.update.mockRejectedValue(
       Object.assign(new Error('duplicate key value'), { code: '23505' }),
     );
 
@@ -219,9 +208,9 @@ describe('CategoriesService', () => {
   });
 
   it('should rethrow non-unique errors unchanged', async () => {
-    const { repository, service } = setup();
+    const { base, service } = setup();
     const failure = new Error('Connection lost');
-    repository.create.mockRejectedValue(failure);
+    base.create.mockRejectedValue(failure);
 
     await expect(
       service.create({

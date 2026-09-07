@@ -1,25 +1,64 @@
+import { and, eq, isNull, type SQL } from 'drizzle-orm';
 import createError from 'http-errors';
 
-import type {
-  categoriesTable,
-  Category,
-} from '../../database/schemas/categories';
-import { BaseService } from '../../shared/base.service';
-import { throwConflictIfUniqueViolation } from '../../shared/unique-violation';
+import { db, type Database } from '../../database';
 import {
-  categoriesRepository,
-  type CategoriesRepository,
-  type CategoryFilters,
-} from './categories.repository';
+  categoriesTable,
+  type Category,
+} from '../../database/schemas/categories';
+import { Service } from '../../shared/service';
+import { throwConflictIfUniqueViolation } from '../../shared/unique-violation';
+
+export type CategoryFilters = {
+  id?: string;
+  organizationId?: string;
+  parentId?: string | null;
+};
 
 type CategoryCreate = typeof categoriesTable.$inferInsert;
 
-export class CategoriesService extends BaseService<
+export class CategoriesService extends Service<
   CategoryFilters,
   Category,
-  CategoriesRepository
+  CategoryCreate
 > {
-  async create(data: CategoryCreate): Promise<Category> {
+  constructor(database: Database) {
+    super({
+      db: database,
+      table: categoriesTable,
+      resourceName: 'Category',
+    });
+  }
+
+  protected buildFilters(filters?: CategoryFilters): SQL | undefined {
+    if (!filters) {
+      return undefined;
+    }
+
+    const conditions: SQL[] = [];
+
+    if (filters.id) {
+      conditions.push(eq(categoriesTable.id, filters.id));
+    }
+
+    if (filters.organizationId) {
+      conditions.push(
+        eq(categoriesTable.organizationId, filters.organizationId),
+      );
+    }
+
+    if (filters.parentId !== undefined) {
+      if (filters.parentId === null) {
+        conditions.push(isNull(categoriesTable.parentId));
+      } else {
+        conditions.push(eq(categoriesTable.parentId, filters.parentId));
+      }
+    }
+
+    return conditions.length > 0 ? and(...conditions) : undefined;
+  }
+
+  override async create(data: CategoryCreate): Promise<Category> {
     await this.assertValidParent(data.organizationId, data.parentId, {
       id: data.id ?? undefined,
     });
@@ -34,7 +73,7 @@ export class CategoriesService extends BaseService<
     }
   }
 
-  async update(
+  override async update(
     id: string,
     data: Partial<CategoryCreate>,
     scope?: CategoryFilters,
@@ -81,7 +120,8 @@ export class CategoriesService extends BaseService<
       throw createError(400, 'Category cannot be its own parent.');
     }
 
-    const parent = await this.repository.findById(parentId, {
+    const parent = await this.findOne({
+      id: parentId,
       organizationId,
     });
 
@@ -103,7 +143,8 @@ export class CategoriesService extends BaseService<
 
       visited.add(ancestorParentId);
 
-      const ancestor = await this.repository.findById(ancestorParentId, {
+      const ancestor = await this.findOne({
+        id: ancestorParentId,
         organizationId,
       });
 
@@ -116,7 +157,4 @@ export class CategoriesService extends BaseService<
   }
 }
 
-export const categoriesService = new CategoriesService(
-  categoriesRepository,
-  'Category',
-);
+export const categoriesService = new CategoriesService(db);
