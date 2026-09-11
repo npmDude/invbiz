@@ -3,6 +3,7 @@ import type { Express } from 'express';
 import authRouter from './modules/auth/auth.controller';
 import branchesRouter from './modules/branches/branches.controller';
 import categoriesRouter from './modules/categories/categories.controller';
+import inventoryRouter from './modules/inventory/inventory.controller';
 import organizationsRouter from './modules/organizations/organizations.controller';
 import productsRouter from './modules/products/products.controller';
 import usersRouter from './modules/users/users.controller';
@@ -11,6 +12,7 @@ export function setupRoutes(app: Express): void {
   app.use('/auth', authRouter);
   app.use('/branches', branchesRouter);
   app.use('/categories', categoriesRouter);
+  app.use('/inventory', inventoryRouter);
   app.use('/organizations', organizationsRouter);
   app.use('/products', productsRouter);
   app.use('/users', usersRouter);
