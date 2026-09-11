@@ -18,6 +18,7 @@ export async function resetDatabase() {
       users_branches,
       roles_permissions,
       products_categories,
+      branches_products,
       products,
       branches,
       categories,
