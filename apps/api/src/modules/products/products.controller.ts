@@ -18,12 +18,15 @@ api.endpoint({
   querySchema: listProductsQuerySchema,
   requiredPermission: 'products.view',
   handler: async ({ query, auth: { user: requester } }) => {
-    const { organizationId } = resolveScope(requester, query.organizationId);
+    const scope = resolveScope(requester, query.organizationId, {
+      narrowBranches: true,
+    });
 
     return productsService.findAll({
-      organizationId,
+      organizationId: scope.organizationId,
       categoryId: query.categoryId,
       search: query.search,
+      userId: scope.userId,
     });
   },
   responses: {
@@ -48,9 +51,14 @@ api.endpoint({
   querySchema: listProductsQuerySchema.pick({ organizationId: true }),
   requiredPermission: 'products.view',
   handler: async ({ params, query, auth: { user: requester } }) => {
-    const { organizationId } = resolveScope(requester, query.organizationId);
+    const scope = resolveScope(requester, query.organizationId, {
+      narrowBranches: true,
+    });
 
-    return productsService.findById(params.id, { organizationId });
+    return productsService.findById(params.id, {
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+    });
   },
   responses: {
     200: {
@@ -87,6 +95,7 @@ api.endpoint({
       description: data.description ?? null,
       stockAlert: data.stockAlert ?? null,
       categoryIds: data.categoryIds,
+      branchPrices: data.branchPrices,
     });
   },
   responses: {
@@ -118,7 +127,9 @@ api.endpoint({
   dataSchema: updateProductBodySchema,
   requiredPermission: 'products.manage',
   handler: async ({ params, query, data, auth: { user: requester } }) => {
-    const { organizationId } = resolveScope(requester, query.organizationId);
+    const scope = resolveScope(requester, query.organizationId, {
+      narrowBranches: true,
+    });
 
     return productsService.update(
       params.id,
@@ -138,7 +149,7 @@ api.endpoint({
           ? { categoryIds: data.categoryIds }
           : {}),
       },
-      { organizationId },
+      { organizationId: scope.organizationId, userId: scope.userId },
     );
   },
   responses: {

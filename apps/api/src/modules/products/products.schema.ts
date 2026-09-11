@@ -22,6 +22,16 @@ const supplierPrice = z.number().nonnegative().multipleOf(0.01);
 const productDescription = z.string().trim().min(1).nullish();
 const stockAlert = z.number().int().min(0).nullish();
 const categoryIds = z.array(z.uuid()).min(1).max(50);
+const salePrice = z.number().nonnegative().multipleOf(0.01);
+const branchPrices = z
+  .array(
+    z.object({
+      branchId: z.uuid(),
+      salePrice,
+    }),
+  )
+  .min(1)
+  .max(50);
 
 export const createProductBodySchema = defineSchema(
   'CreateProductBody',
@@ -33,6 +43,7 @@ export const createProductBodySchema = defineSchema(
     description: productDescription,
     stockAlert,
     categoryIds,
+    branchPrices,
   }),
 );
 

@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Database } from '../../database';
+import { branchesTable } from '../../database/schemas/branches';
+import { branchesProductsTable } from '../../database/schemas/branches-products';
 import type { Category } from '../../database/schemas/categories';
 import type { Product } from '../../database/schemas/products';
 import { Service } from '../../shared/service';
+import { InventoryService } from '../inventory/inventory.service';
 import { ProductsService } from './products.service';
 
 const ORGANIZATION_ID = '11111111-1111-4111-8111-111111111111';
 const PRODUCT_ID = '33333333-3333-4333-8333-333333333333';
 const CATEGORY_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const CATEGORY_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const BRANCH_A = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 function makeProduct(overrides: Partial<Product> = {}): Product {
   return {
@@ -38,15 +42,47 @@ function makeCategory(id: string): Category {
   };
 }
 
-function mockCategoryLookup(found: Category[]) {
-  const where = vi.fn().mockResolvedValue(found);
+function makeBranch(id: string) {
+  return {
+    id,
+    organizationId: ORGANIZATION_ID,
+    name: `Branch ${id.slice(0, 4)}`,
+    address: 'Addr',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function mockLookup(
+  foundCategories: Category[],
+  foundBranches: unknown[],
+  foundPrices: unknown[],
+) {
+  const where = vi.fn().mockImplementation(() => {
+    const table = from.mock.calls.at(-1)?.[0];
+    if (table === branchesTable) {
+      return Promise.resolve(foundBranches);
+    }
+    if (table === branchesProductsTable) {
+      return Promise.resolve(foundPrices);
+    }
+    return Promise.resolve(foundCategories);
+  });
   const from = vi.fn().mockReturnValue({ where });
   return { select: vi.fn().mockReturnValue({ from }), where, from };
 }
 
-function setup(options: { categories?: Category[] } = {}) {
+function setup(
+  options: {
+    categories?: Category[];
+    branches?: unknown[];
+    prices?: unknown[];
+  } = {},
+) {
   const categories = options.categories ?? [makeCategory(CATEGORY_A)];
-  const lookup = mockCategoryLookup(categories);
+  const branches = options.branches ?? [makeBranch(BRANCH_A)];
+  const prices = options.prices ?? [];
+  const lookup = mockLookup(categories, branches, prices);
 
   const linksInsert = vi.fn().mockResolvedValue([]);
   const linksDelete = vi.fn().mockReturnValue({});
@@ -135,10 +171,14 @@ describe('ProductsService', () => {
       description: null,
       stockAlert: null,
       categoryIds: [CATEGORY_A, CATEGORY_B],
+      branchPrices: [{ branchId: BRANCH_A, salePrice: 2.5 }],
     });
 
     expect(result).toMatchObject({ id: PRODUCT_ID, name: 'Test Product' });
     expect(result.categoryIds).toEqual([CATEGORY_A, CATEGORY_B]);
+    expect(result.branchPrices).toEqual([
+      { branchId: BRANCH_A, quantity: 0, salePrice: '2.50' },
+    ]);
     expect(base.create).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: ORGANIZATION_ID,
@@ -148,6 +188,103 @@ describe('ProductsService', () => {
       }),
     );
     expect(linksInsert).toHaveBeenCalled();
+  });
+
+  it('should reject creation without at least one branch', async () => {
+    const { service } = setup();
+
+    await expect(
+      service.create({
+        organizationId: ORGANIZATION_ID,
+        name: 'Widget',
+        code: 'W-001',
+        supplierPrice: '5.00',
+        description: null,
+        stockAlert: null,
+        categoryIds: [CATEGORY_A],
+        branchPrices: [],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Product must be available in at least one branch.',
+    });
+  });
+
+  it('should reject creation with a branch from another organization', async () => {
+    const { service } = setup({ branches: [] });
+
+    await expect(
+      service.create({
+        organizationId: ORGANIZATION_ID,
+        name: 'Widget',
+        code: 'W-001',
+        supplierPrice: '5.00',
+        description: null,
+        stockAlert: null,
+        categoryIds: [CATEGORY_A],
+        branchPrices: [{ branchId: BRANCH_A, salePrice: 2.5 }],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'One or more branches were not found in this organization.',
+    });
+  });
+
+  it('should reject duplicate branches in branch prices', async () => {
+    const { service } = setup();
+
+    await expect(
+      service.create({
+        organizationId: ORGANIZATION_ID,
+        name: 'Widget',
+        code: 'W-001',
+        supplierPrice: '5.00',
+        description: null,
+        stockAlert: null,
+        categoryIds: [CATEGORY_A],
+        branchPrices: [
+          { branchId: BRANCH_A, salePrice: 2.5 },
+          { branchId: BRANCH_A, salePrice: 3 },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Duplicate branch in branch prices.',
+    });
+  });
+
+  it('should narrow branch prices through the inventory service', async () => {
+    const { base, service } = setup({
+      prices: [
+        {
+          productId: PRODUCT_ID,
+          branchId: BRANCH_A,
+          quantity: 5,
+          salePrice: '2.50',
+        },
+      ],
+    });
+    base.findAll.mockResolvedValue([makeProduct()]);
+    const listForProducts = vi.spyOn(
+      InventoryService.prototype,
+      'listForProducts',
+    );
+
+    const result = await service.findAll({
+      organizationId: ORGANIZATION_ID,
+      userId: 'user-1',
+    });
+
+    expect(listForProducts).toHaveBeenCalledWith([PRODUCT_ID], {
+      organizationId: ORGANIZATION_ID,
+      userId: 'user-1',
+    });
+    expect(result).toMatchObject([
+      {
+        id: PRODUCT_ID,
+        branchPrices: [{ branchId: BRANCH_A, quantity: 5 }],
+      },
+    ]);
   });
 
   it('should map a duplicate name or code to 409 on create', async () => {
@@ -165,6 +302,7 @@ describe('ProductsService', () => {
         description: null,
         stockAlert: null,
         categoryIds: [CATEGORY_A],
+        branchPrices: [{ branchId: BRANCH_A, salePrice: 2.5 }],
       }),
     ).rejects.toMatchObject({ status: 409 });
   });
@@ -174,6 +312,7 @@ describe('ProductsService', () => {
     base.findById.mockResolvedValue({
       ...makeProduct(),
       categoryIds: [CATEGORY_A],
+      branchPrices: [],
     });
 
     await expect(
@@ -195,6 +334,7 @@ describe('ProductsService', () => {
     base.findById.mockResolvedValue({
       ...makeProduct(),
       categoryIds: [CATEGORY_A],
+      branchPrices: [],
     });
 
     await expect(

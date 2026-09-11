@@ -2,26 +2,50 @@ import { and, eq, ilike, inArray, or, type SQL } from 'drizzle-orm';
 import createError from 'http-errors';
 
 import { db, type Database } from '../../database';
+import { branchesTable } from '../../database/schemas/branches';
+import { branchesProductsTable } from '../../database/schemas/branches-products';
 import { categoriesTable } from '../../database/schemas/categories';
 import { productsTable, type Product } from '../../database/schemas/products';
 import { productsCategoriesTable } from '../../database/schemas/products-categories';
 import { Service } from '../../shared/service';
+import { normalizePrice } from '../../shared/normalize-price';
 import { throwConflictIfUniqueViolation } from '../../shared/unique-violation';
+import {
+  InventoryService,
+  type InventoryPriceRow,
+} from '../inventory/inventory.service';
 
 export type ProductFilters = {
   id?: string;
   organizationId?: string;
   categoryId?: string;
   search?: string;
+  /** Set for standard users: narrow branch prices to assigned branches. */
+  userId?: string;
 };
 
-export type ProductWithCategories = Product & { categoryIds: string[] };
+export type BranchPriceInput = {
+  branchId: string;
+  salePrice: string | number;
+};
+
+export type BranchPrice = {
+  branchId: string;
+  quantity: number;
+  salePrice: string;
+};
+
+export type ProductWithCategories = Product & {
+  categoryIds: string[];
+  branchPrices: BranchPrice[];
+};
 
 type ProductRow = typeof productsTable.$inferInsert;
 
 export type ProductCreateInput = Omit<ProductRow, 'supplierPrice'> & {
   supplierPrice: string | number;
   categoryIds?: string[];
+  branchPrices?: BranchPriceInput[];
 };
 
 export type ProductUpdateInput = Omit<Partial<ProductRow>, 'supplierPrice'> & {
@@ -32,19 +56,17 @@ export type ProductUpdateInput = Omit<Partial<ProductRow>, 'supplierPrice'> & {
 const CONFLICT_MESSAGE =
   'A product with this name or code already exists in this organization.';
 
-function normalizePrice(value: string | number): string {
-  if (typeof value === 'number') {
-    return value.toFixed(2);
-  }
-  return value;
-}
-
 export class ProductsService extends Service<
   ProductFilters,
   ProductWithCategories,
   ProductRow
 > {
-  constructor(database: Database) {
+  constructor(
+    database: Database,
+    private readonly inventory: InventoryService = new InventoryService(
+      database,
+    ),
+  ) {
     super({
       db: database,
       table: productsTable,
@@ -104,10 +126,15 @@ export class ProductsService extends Service<
     const links = await this.listCategoryLinks(
       products.map((product) => product.id),
     );
+    const prices = await this.listBranchPrices(
+      products.map((product) => product.id),
+      { organizationId: filters?.organizationId, userId: filters?.userId },
+    );
 
     return products.map((product) => ({
       ...product,
       categoryIds: links.get(product.id) ?? [],
+      branchPrices: prices.get(product.id) ?? [],
     }));
   }
 
@@ -122,8 +149,16 @@ export class ProductsService extends Service<
     }
 
     const links = await this.listCategoryLinks([product.id]);
+    const prices = await this.listBranchPrices([product.id], {
+      organizationId: filters?.organizationId,
+      userId: filters?.userId,
+    });
 
-    return { ...product, categoryIds: links.get(product.id) ?? [] };
+    return {
+      ...product,
+      categoryIds: links.get(product.id) ?? [],
+      branchPrices: prices.get(product.id) ?? [],
+    };
   }
 
   override async findById(
@@ -132,8 +167,16 @@ export class ProductsService extends Service<
   ): Promise<ProductWithCategories> {
     const product = (await super.findById(id, scope)) as unknown as Product;
     const links = await this.listCategoryLinks([product.id]);
+    const prices = await this.listBranchPrices([product.id], {
+      organizationId: scope?.organizationId,
+      userId: scope?.userId,
+    });
 
-    return { ...product, categoryIds: links.get(product.id) ?? [] };
+    return {
+      ...product,
+      categoryIds: links.get(product.id) ?? [],
+      branchPrices: prices.get(product.id) ?? [],
+    };
   }
 
   override async create(
@@ -142,6 +185,10 @@ export class ProductsService extends Service<
     const categoryIds = await this.assertValidCategories(
       data.organizationId,
       data.categoryIds ?? [],
+    );
+    const branchPrices = await this.assertValidBranches(
+      data.organizationId,
+      data.branchPrices ?? [],
     );
 
     const row: ProductRow = {
@@ -167,7 +214,24 @@ export class ProductsService extends Service<
       })),
     );
 
-    return { ...product, categoryIds };
+    const inventoryRows = branchPrices.map(({ branchId, salePrice }) => ({
+      branchId,
+      productId: product.id,
+      quantity: 0,
+      salePrice: normalizePrice(salePrice),
+    }));
+
+    await this.db.insert(branchesProductsTable).values(inventoryRows);
+
+    return {
+      ...product,
+      categoryIds,
+      branchPrices: inventoryRows.map((inventoryRow) => ({
+        branchId: inventoryRow.branchId,
+        quantity: inventoryRow.quantity,
+        salePrice: inventoryRow.salePrice,
+      })),
+    };
   }
 
   override async update(
@@ -222,7 +286,11 @@ export class ProductsService extends Service<
         );
     }
 
-    return { ...product, categoryIds: nextCategoryIds };
+    return {
+      ...product,
+      categoryIds: nextCategoryIds,
+      branchPrices: current.branchPrices,
+    };
   }
 
   override async delete(
@@ -231,7 +299,7 @@ export class ProductsService extends Service<
   ): Promise<ProductWithCategories> {
     const deleted = (await super.delete(id, scope)) as unknown as Product;
 
-    return { ...deleted, categoryIds: [] };
+    return { ...deleted, categoryIds: [], branchPrices: [] };
   }
 
   private async assertValidCategories(
@@ -262,6 +330,79 @@ export class ProductsService extends Service<
     }
 
     return deduped;
+  }
+
+  private async assertValidBranches(
+    organizationId: string,
+    branchPrices: BranchPriceInput[],
+  ): Promise<BranchPriceInput[]> {
+    const seen = new Map<string, BranchPriceInput>();
+
+    for (const entry of branchPrices) {
+      if (seen.has(entry.branchId)) {
+        throw createError(400, 'Duplicate branch in branch prices.');
+      }
+      seen.set(entry.branchId, entry);
+    }
+
+    const deduped = [...seen.values()];
+
+    if (deduped.length === 0) {
+      throw createError(
+        400,
+        'Product must be available in at least one branch.',
+      );
+    }
+
+    const matches = await this.db
+      .select({ id: branchesTable.id })
+      .from(branchesTable)
+      .where(
+        and(
+          eq(branchesTable.organizationId, organizationId),
+          inArray(
+            branchesTable.id,
+            deduped.map((entry) => entry.branchId),
+          ),
+        ),
+      );
+
+    if (matches.length !== deduped.length) {
+      throw createError(
+        400,
+        'One or more branches were not found in this organization.',
+      );
+    }
+
+    return deduped;
+  }
+
+  private async listBranchPrices(
+    productIds: string[],
+    scope: { organizationId?: string; userId?: string },
+  ): Promise<Map<string, BranchPrice[]>> {
+    if (productIds.length === 0) {
+      return new Map();
+    }
+
+    const rows: InventoryPriceRow[] = await this.inventory.listForProducts(
+      productIds,
+      scope,
+    );
+
+    const grouped = new Map<string, BranchPrice[]>();
+
+    for (const row of rows) {
+      const list = grouped.get(row.productId) ?? [];
+      list.push({
+        branchId: row.branchId,
+        quantity: row.quantity,
+        salePrice: row.salePrice,
+      });
+      grouped.set(row.productId, list);
+    }
+
+    return grouped;
   }
 
   private async listCategoryLinks(
