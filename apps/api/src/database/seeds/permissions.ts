@@ -58,6 +58,18 @@ const permissions = [
     id: 'products.manage',
     description: 'Manage products',
   },
+  {
+    id: 'inventory.view',
+    description: 'View inventory',
+  },
+  {
+    id: 'inventory.create',
+    description: 'Create inventory',
+  },
+  {
+    id: 'inventory.manage',
+    description: 'Manage inventory',
+  },
 ];
 
 export async function seedPermissions() {
