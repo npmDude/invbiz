@@ -2,6 +2,8 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createApp } from '../../src/app.js';
+import { db } from '../../src/database/index.js';
+import { usersBranchesTable } from '../../src/database/schemas/users-branches.js';
 import {
   createTestOrganization,
   createTestUser,
@@ -59,6 +61,8 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
     await grantPermission(member.userId, 'categories.view');
     await grantPermission(member.userId, 'categories.create');
     await grantPermission(member.userId, 'categories.manage');
+    await grantPermission(member.userId, 'branches.view');
+    await grantPermission(member.userId, 'branches.create');
   });
 
   function auth(token: string) {
@@ -78,10 +82,44 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
     return response.body as { id: string };
   }
 
+  async function createBranch(
+    name: string,
+    organizationId: string,
+    token: string,
+  ) {
+    const response = await request(app)
+      .post('/branches')
+      .set(auth(token))
+      .send({ organizationId, name, address: 'Test Addr' })
+      .expect(201);
+    return response.body as { id: string };
+  }
+
+  async function assignBranch(userId: string, branchId: string) {
+    await db.insert(usersBranchesTable).values({ userId, branchId });
+  }
+
+  async function createProduct(
+    token: string,
+    input: Record<string, unknown>,
+  ): Promise<{ id: string }> {
+    const response = await request(app)
+      .post('/products')
+      .set(auth(token))
+      .send(input)
+      .expect(201);
+    return response.body as { id: string };
+  }
+
   describe('POST /products', () => {
     it('should create a product with a category', async () => {
       const category = await createCategory(
         'Beverages',
+        member.organizationId as string,
+        member.accessToken,
+      );
+      const branch = await createBranch(
+        'Main',
         member.organizationId as string,
         member.accessToken,
       );
@@ -95,6 +133,7 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
           code: 'COKE-500',
           supplierPrice: 1.5,
           categoryIds: [category.id],
+          branchPrices: [{ branchId: branch.id, salePrice: 2.5 }],
         })
         .expect(201);
 
@@ -107,6 +146,11 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
     });
 
     it('should reject creation without categories', async () => {
+      const branch = await createBranch(
+        'Main',
+        member.organizationId as string,
+        member.accessToken,
+      );
       const response = await request(app)
         .post('/products')
         .set(auth(member.accessToken))
@@ -116,6 +160,7 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
           code: 'LON-001',
           supplierPrice: 2,
           categoryIds: [],
+          branchPrices: [{ branchId: branch.id, salePrice: 2.5 }],
         })
         .expect(400);
 
@@ -128,12 +173,18 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
         member.organizationId as string,
         member.accessToken,
       );
+      const branch = await createBranch(
+        'Main',
+        member.organizationId as string,
+        member.accessToken,
+      );
       const payload = {
         organizationId: member.organizationId,
         name: 'Widget',
         code: 'W-001',
         supplierPrice: 5,
         categoryIds: [category.id],
+        branchPrices: [{ branchId: branch.id, salePrice: 6 }],
       };
 
       await request(app)
@@ -156,6 +207,11 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
         foreignOrg.id,
         admin.accessToken,
       );
+      const branch = await createBranch(
+        'Main',
+        member.organizationId as string,
+        member.accessToken,
+      );
 
       const response = await request(app)
         .post('/products')
@@ -166,6 +222,7 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
           code: 'HIJ-001',
           supplierPrice: 3,
           categoryIds: [foreign.id],
+          branchPrices: [{ branchId: branch.id, salePrice: 4 }],
         })
         .expect(400);
 
@@ -180,6 +237,11 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
         member.organizationId as string,
         member.accessToken,
       );
+      const branch = await createBranch(
+        'Main',
+        member.organizationId as string,
+        member.accessToken,
+      );
 
       await request(app)
         .post('/products')
@@ -190,6 +252,7 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
           code: 'CHP-001',
           supplierPrice: 2.25,
           categoryIds: [category.id],
+          branchPrices: [{ branchId: branch.id, salePrice: 3 }],
         })
         .expect(201);
 
@@ -203,12 +266,145 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
         'CHP-001',
       ]);
     });
+
+    it('should narrow branch prices to assigned branches', async () => {
+      const organizationId = member.organizationId as string;
+      const category = await createCategory(
+        'Beverages',
+        organizationId,
+        member.accessToken,
+      );
+      const main = await createBranch(
+        'Main',
+        organizationId,
+        member.accessToken,
+      );
+      const north = await createBranch(
+        'North',
+        organizationId,
+        member.accessToken,
+      );
+      await createProduct(member.accessToken, {
+        organizationId,
+        name: 'Coke 500ml',
+        code: 'COKE-500',
+        supplierPrice: 1.5,
+        categoryIds: [category.id],
+        branchPrices: [
+          { branchId: main.id, salePrice: 2.5 },
+          { branchId: north.id, salePrice: 2.75 },
+        ],
+      });
+      await assignBranch(member.userId, main.id);
+
+      const response = await request(app)
+        .get('/products')
+        .query({ organizationId })
+        .set(auth(member.accessToken))
+        .expect(200);
+
+      expect(response.body).toMatchObject([
+        { code: 'COKE-500', branchPrices: [{ branchId: main.id }] },
+      ]);
+    });
+
+    it('should show all branch prices to admins', async () => {
+      const organizationId = member.organizationId as string;
+      const category = await createCategory(
+        'Beverages',
+        organizationId,
+        member.accessToken,
+      );
+      const main = await createBranch(
+        'Main',
+        organizationId,
+        member.accessToken,
+      );
+      const north = await createBranch(
+        'North',
+        organizationId,
+        member.accessToken,
+      );
+      await createProduct(member.accessToken, {
+        organizationId,
+        name: 'Coke 500ml',
+        code: 'COKE-500',
+        supplierPrice: 1.5,
+        categoryIds: [category.id],
+        branchPrices: [
+          { branchId: main.id, salePrice: 2.5 },
+          { branchId: north.id, salePrice: 2.75 },
+        ],
+      });
+
+      const response = await request(app)
+        .get('/products')
+        .query({ organizationId })
+        .set(auth(admin.accessToken))
+        .expect(200);
+
+      expect(response.body).toMatchObject([
+        {
+          code: 'COKE-500',
+          branchPrices: [{ branchId: main.id }, { branchId: north.id }],
+        },
+      ]);
+    });
+  });
+
+  describe('GET /products/:id', () => {
+    it('should narrow branch prices to assigned branches', async () => {
+      const organizationId = member.organizationId as string;
+      const category = await createCategory(
+        'Beverages',
+        organizationId,
+        member.accessToken,
+      );
+      const main = await createBranch(
+        'Main',
+        organizationId,
+        member.accessToken,
+      );
+      const north = await createBranch(
+        'North',
+        organizationId,
+        member.accessToken,
+      );
+      const product = await createProduct(member.accessToken, {
+        organizationId,
+        name: 'Coke 500ml',
+        code: 'COKE-500',
+        supplierPrice: 1.5,
+        categoryIds: [category.id],
+        branchPrices: [
+          { branchId: main.id, salePrice: 2.5 },
+          { branchId: north.id, salePrice: 2.75 },
+        ],
+      });
+      await assignBranch(member.userId, main.id);
+
+      const response = await request(app)
+        .get(`/products/${product.id}`)
+        .query({ organizationId })
+        .set(auth(member.accessToken))
+        .expect(200);
+
+      expect(response.body).toMatchObject({
+        code: 'COKE-500',
+        branchPrices: [{ branchId: main.id }],
+      });
+    });
   });
 
   describe('DELETE /categories with products', () => {
     it('should reject deleting the last category of a product', async () => {
       const category = await createCategory(
         'Solo',
+        member.organizationId as string,
+        member.accessToken,
+      );
+      const branch = await createBranch(
+        'Main',
         member.organizationId as string,
         member.accessToken,
       );
@@ -222,6 +418,7 @@ describe.skipIf(!hasTestDb)('products endpoints', () => {
           code: 'SOLO-001',
           supplierPrice: 9.99,
           categoryIds: [category.id],
+          branchPrices: [{ branchId: branch.id, salePrice: 12 }],
         })
         .expect(201);
 
